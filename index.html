@@ -207,8 +207,8 @@ const total = raw.reduce((a,d)=>a+d.count,0);
 document.getElementById('totalNum').textContent = total.toLocaleString();
 
 const globe = Globe()(document.getElementById('globeViz'))
-  .globeImageUrl('https://cdn.jsdelivr.net/npm/globe.gl/example/img/earth-blue-marble.jpg')
-  .backgroundImageUrl('https://cdn.jsdelivr.net/npm/globe.gl/example/img/night-sky.png')
+  .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+  .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
   .atmosphereColor('#64b4ff')
   .atmosphereAltitude(0.14)
   .pointsData(allData)
