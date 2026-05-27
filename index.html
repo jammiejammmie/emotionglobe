@@ -20,6 +20,15 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
 #stats .num { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 36px; line-height: 1; background: linear-gradient(135deg, #fff, #a8d8ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 #stats .lbl { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; opacity: 0.35; margin-top: 2px; }
 
+#user-status { position: fixed; top: 28px; left: 28px; z-index: 20; }
+#login-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 8px 16px; color: white; font-family: 'Gowun Dodum', sans-serif; font-size: 11px; cursor: pointer; letter-spacing: 1px; transition: all 0.2s; }
+#login-btn:hover { background: rgba(255,255,255,0.12); }
+#user-info { display: none; align-items: center; gap: 8px; }
+#user-avatar { width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); }
+#user-name { font-size: 11px; opacity: 0.6; letter-spacing: 0.5px; }
+#logout-btn { font-size: 10px; opacity: 0.3; cursor: pointer; background: none; border: none; color: white; padding: 0; letter-spacing: 1px; }
+#logout-btn:hover { opacity: 0.6; }
+
 #emotions { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 20; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-radius: 60px; padding: 10px 16px; }
 .em-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 8px 11px; border-radius: 40px; border: 1.5px solid transparent; background: transparent; transition: all 0.2s ease; color: white; }
 .em-btn:hover { background: rgba(255,255,255,0.07); transform: translateY(-2px); }
@@ -31,13 +40,8 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
 #hint { position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%); font-size: 11px; letter-spacing: 1.5px; opacity: 0.3; text-align: center; z-index: 20; pointer-events: none; transition: all 0.4s; white-space: nowrap; }
 #hint.hl { opacity: 0.8; color: #FFD166; }
 
-#legend { position: fixed; top: 28px; left: 28px; z-index: 20; pointer-events: none; }
-#legend .row { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; }
-#legend .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-#legend .txt { font-size: 10px; opacity: 0.45; letter-spacing: 0.5px; }
-
-#toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.85); background: rgba(8,12,28,0.96); border: 1px solid rgba(255,255,255,0.1); border-radius: 22px; padding: 28px 36px; text-align: center; z-index: 100; opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(.34,1.56,.64,1); }
-#toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+#toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.85); background: rgba(8,12,28,0.96); border: 1px solid rgba(255,255,255,0.1); border-radius: 22px; padding: 28px 36px; text-align: center; z-index: 100; opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(.34,1.56,.64,1); min-width: 200px; }
+#toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
 #toast .big { font-size: 52px; display: block; margin-bottom: 12px; }
 #toast h3 { margin: 0 0 6px; font-size: 18px; font-weight: normal; }
 #toast p { margin: 0; font-size: 11px; opacity: 0.4; letter-spacing: 1.5px; }
@@ -53,9 +57,19 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
 
 <div id="loading"><div class="spinner"></div><p>지구를 불러오는 중...</p></div>
 <div id="globeViz"></div>
+
 <div id="title"><h1>감정지구본</h1><p>Emotion Globe &middot; Live</p></div>
 <div id="stats"><div class="num" id="totalNum">-</div><div class="lbl">오늘의 감정</div></div>
-<div id="legend"></div>
+
+<div id="user-status">
+  <button id="login-btn">🔑 구글로 로그인</button>
+  <div id="user-info">
+    <img id="user-avatar" src="" alt="">
+    <span id="user-name"></span>
+    <button id="logout-btn">로그아웃</button>
+  </div>
+</div>
+
 <div id="hint">감정을 선택하고 지구를 클릭해 기록해요 &middot; 드래그로 회전 &middot; 스크롤로 확대</div>
 <div id="emotions"></div>
 <div id="toast"><span class="big" id="tEmoji">😊</span><h3 id="tTitle">감정이 기록됐어요</h3><p id="tSub">내일 또 만나요 🌍</p></div>
@@ -67,13 +81,54 @@ window.onload = async function() {
   const { createClient } = supabase
   const db = createClient(SUPABASE_URL, SUPABASE_KEY)
 
-  // 유저 ID (디바이스 고유)
-  let userId = localStorage.getItem('eg_uid')
-  if (!userId) { userId = 'u_' + Date.now().toString(36) + Math.random().toString(36).substr(2,5); localStorage.setItem('eg_uid', userId) }
-
-  // 오늘 기록 여부
+  // 로그인 상태
+  let currentUser = null
   const todayKey = new Date().toISOString().split('T')[0]
-  let postedToday = localStorage.getItem('eg_posted') === todayKey
+
+  // 유저 UI 업데이트
+  function updateUserUI(user) {
+    currentUser = user
+    const loginBtn = document.getElementById('login-btn')
+    const userInfo = document.getElementById('user-info')
+    if (user) {
+      loginBtn.style.display = 'none'
+      userInfo.style.display = 'flex'
+      document.getElementById('user-avatar').src = user.user_metadata?.avatar_url || ''
+      document.getElementById('user-name').textContent = user.user_metadata?.full_name?.split(' ')[0] || '익명'
+    } else {
+      loginBtn.style.display = 'block'
+      userInfo.style.display = 'none'
+    }
+  }
+
+  // 로그인 버튼
+  document.getElementById('login-btn').onclick = async () => {
+    await db.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.href }
+    })
+  }
+  document.getElementById('logout-btn').onclick = async () => {
+    await db.auth.signOut()
+    updateUserUI(null)
+    showToast('👋', '로그아웃 됐어요', '')
+  }
+
+  // 세션 확인
+  const { data: { session } } = await db.auth.getSession()
+  if (session) updateUserUI(session.user)
+  db.auth.onAuthStateChange((event, session) => {
+    updateUserUI(session?.user || null)
+  })
+
+  // 오늘 기록 여부 확인
+  async function hasPostedToday() {
+    if (!currentUser) return localStorage.getItem('eg_posted') === todayKey
+    const { data } = await db.from('emotion_posts')
+      .select('id').eq('user_id', currentUser.id)
+      .gte('created_at', todayKey + 'T00:00:00Z').limit(1)
+    return data && data.length > 0
+  }
 
   const emotions = [
     { key:'joy',        label:'기쁨',  emoji:'😊', color:'#FFD166', ch:'rgba(255,209,102,.35)' },
@@ -88,7 +143,6 @@ window.onload = async function() {
   const em = {}
   emotions.forEach(e => em[e.key] = e)
 
-  // 배경용 샘플 데이터 (DB 비어있을 때 지구가 살아보이도록)
   const sampleData = [
     {lat:37.57,lng:126.98,emotion:'tired',city:'서울',count:4823,isSample:true},
     {lat:35.68,lng:139.65,emotion:'tired',city:'도쿄',count:6234,isSample:true},
@@ -106,36 +160,22 @@ window.onload = async function() {
     {lat:19.08,lng:72.88,emotion:'anxiety',city:'뭄바이',count:4567,isSample:true},
     {lat:25.20,lng:55.27,emotion:'excitement',city:'두바이',count:2134,isSample:true},
     {lat:1.35,lng:103.82,emotion:'peace',city:'싱가포르',count:1876,isSample:true},
-    {lat:-6.21,lng:106.85,emotion:'joy',city:'자카르타',count:3456,isSample:true},
     {lat:41.90,lng:12.50,emotion:'joy',city:'로마',count:2876,isSample:true},
     {lat:52.52,lng:13.41,emotion:'peace',city:'베를린',count:2187,isSample:true},
     {lat:19.43,lng:-99.13,emotion:'joy',city:'멕시코시티',count:3210,isSample:true},
+    {lat:-6.21,lng:106.85,emotion:'joy',city:'자카르타',count:3456,isSample:true},
   ]
 
-  // DB에서 오늘 데이터 로드
   let realData = []
   try {
-    const { data } = await db.from('emotion_posts').select('*').gte('created_at', todayKey + 'T00:00:00Z').limit(1000)
+    const { data } = await db.from('emotion_posts').select('*')
+      .gte('created_at', todayKey + 'T00:00:00Z').limit(1000)
     realData = data || []
   } catch(e) { console.log('DB 로드 실패', e) }
 
   let allData = [...sampleData, ...realData]
-
-  // 카운트 업데이트
   const sampleTotal = sampleData.reduce((a,d)=>a+d.count,0)
   document.getElementById('totalNum').textContent = (sampleTotal + realData.length).toLocaleString()
-
-  // 레전드
-  const emCounts = {}
-  sampleData.forEach(d => { emCounts[d.emotion] = (emCounts[d.emotion]||0) + d.count })
-  const top4 = Object.entries(emCounts).sort((a,b)=>b[1]-a[1]).slice(0,4).map(e=>e[0])
-  const legEl = document.getElementById('legend')
-  top4.forEach(key => {
-    const e = em[key]; if(!e) return
-    const row = document.createElement('div'); row.className='row'
-    row.innerHTML=`<div class="dot" style="background:${e.color}"></div><span class="txt">${e.emoji} ${e.label}</span>`
-    legEl.appendChild(row)
-  })
 
   // 감정 버튼
   const emEl = document.getElementById('emotions')
@@ -145,16 +185,40 @@ window.onload = async function() {
     btn.className='em-btn'; btn.dataset.key=e.key
     btn.style.setProperty('--c', e.color); btn.style.setProperty('--ch', e.ch)
     btn.innerHTML=`<span class="emo">${e.emoji}</span><span class="lbl">${e.label}</span>`
-    btn.onclick = () => {
-      if(postedToday){ showToast('😊','오늘은 이미 기록했어요','내일 또 와주세요 🌍'); return }
+    btn.onclick = async () => {
+      const posted = await hasPostedToday()
+      if(posted){ showToast('😊','오늘은 이미 기록했어요','내일 또 와주세요 🌍'); return }
       selected = selected===e.key ? null : e.key
       document.querySelectorAll('.em-btn').forEach(b=>b.classList.toggle('active',b.dataset.key===selected))
       const h=document.getElementById('hint')
-      if(selected){ const ex=em[selected]; h.textContent=`${ex.emoji} ${ex.label}을(를) 선택했어요 · 지구를 클릭해 기록하세요`; h.classList.add('hl') }
-      else{ h.textContent='감정을 선택하고 지구를 클릭해 기록해요 · 드래그로 회전 · 스크롤로 확대'; h.classList.remove('hl') }
+      if(selected){
+        const ex=em[selected]
+        h.textContent=`${ex.emoji} ${ex.label} 선택됨 · 지구를 클릭하거나 📍 버튼으로 내 위치 자동감지`
+        h.classList.add('hl')
+      } else {
+        h.textContent='감정을 선택하고 지구를 클릭해 기록해요 · 드래그로 회전 · 스크롤로 확대'
+        h.classList.remove('hl')
+      }
     }
     emEl.appendChild(btn)
   })
+
+  // GPS 버튼
+  const gpsBtn = document.createElement('button')
+  gpsBtn.className='em-btn'
+  gpsBtn.style.borderColor='rgba(255,255,255,0.2)'
+  gpsBtn.innerHTML=`<span class="emo">📍</span><span class="lbl">내위치</span>`
+  gpsBtn.onclick = async () => {
+    if(!selected){ showToast('👆','감정을 먼저 선택해주세요',''); return }
+    const posted = await hasPostedToday()
+    if(posted){ showToast('😊','오늘은 이미 기록했어요','내일 또 와주세요 🌍'); return }
+    showToast('📍','위치 확인 중...','잠깐만요')
+    navigator.geolocation.getCurrentPosition(
+      pos => recordEmotion(pos.coords.latitude, pos.coords.longitude),
+      () => showToast('😅','위치 접근 실패','지구를 직접 클릭해주세요')
+    )
+  }
+  emEl.appendChild(gpsBtn)
 
   function showToast(emoji, title, sub, dur=2800){
     document.getElementById('tEmoji').textContent=emoji
@@ -164,9 +228,38 @@ window.onload = async function() {
     setTimeout(()=>t.classList.remove('show'), dur)
   }
 
-  // 지구본
+  async function recordEmotion(lat, lng) {
+    const e = em[selected]
+    const userId = currentUser ? currentUser.id : (localStorage.getItem('eg_uid') || (() => { const id='u_'+Date.now().toString(36)+Math.random().toString(36).substr(2,5); localStorage.setItem('eg_uid',id); return id })())
+    showToast('⏳','기록 중...','')
+    try {
+      const { error } = await db.from('emotion_posts').insert([{ user_id: userId, lat, lng, emotion: selected }])
+      if(error) throw error
+      if(!currentUser) localStorage.setItem('eg_posted', todayKey)
+      realData = [...realData, {lat, lng, emotion: selected, isUser: true}]
+      allData = [...sampleData, ...realData]
+      globe.pointsData(allData)
+      const n=document.getElementById('totalNum')
+      n.textContent=(parseInt(n.textContent.replace(/,/g,''))+1).toLocaleString()
+      showToast(e.emoji,`${e.label} 기록 완료!`,'내일 또 만나요 🌍')
+      selected=null
+      document.querySelectorAll('.em-btn').forEach(b=>b.classList.remove('active'))
+      const h=document.getElementById('hint')
+      h.textContent='오늘의 감정이 지구에 새겨졌어요 ✨'; h.style.opacity='0.7'
+    } catch(err) {
+      showToast('😅','저장 실패','다시 시도해주세요')
+    }
+  }
+
+  // 낮/밤 텍스처 (접속 시간 기준 자동)
+  const hour = new Date().getUTCHours()
+  const isDaytime = hour >= 6 && hour < 18
+  const earthTex = isDaytime
+    ? 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'
+    : 'https://unpkg.com/three-globe/example/img/earth-night.jpg'
+
   const globe = Globe()(document.getElementById('globeViz'))
-    .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+    .globeImageUrl(earthTex)
     .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
     .atmosphereColor('#64b4ff')
     .atmosphereAltitude(0.14)
@@ -175,7 +268,7 @@ window.onload = async function() {
     .pointColor(d => {
       const e = em[d.emotion]
       if (!e) return '#fff'
-      return d.isSample ? e.color + '66' : e.color
+      return d.isSample ? e.color + '55' : e.color
     })
     .pointRadius(d => {
       if (d.isUser) return 0.7
@@ -186,7 +279,7 @@ window.onload = async function() {
     .pointResolution(8)
     .pointLabel(d => {
       const e=em[d.emotion]
-      const label = d.isSample ? `${d.city} (샘플)` : d.isUser ? '나의 감정 ✨' : '익명의 감정'
+      const label = d.isSample ? d.city : d.isUser ? '나의 감정 ✨' : '익명의 감정'
       return `<div style="background:rgba(5,8,22,.94);border:1px solid rgba(255,255,255,.1);padding:10px 14px;border-radius:14px;color:white;font-family:'Gowun Dodum',sans-serif;font-size:13px">
         <div style="font-size:20px;margin-bottom:5px">${e?.emoji||'✨'}</div>
         <div style="font-weight:bold;margin-bottom:2px">${label}</div>
@@ -196,40 +289,13 @@ window.onload = async function() {
     .onGlobeClick(async ({lat,lng}) => {
       if(!selected){
         const h=document.getElementById('hint')
-        h.textContent='👆 먼저 아래에서 감정을 선택해주세요!'; h.classList.add('hl')
-        setTimeout(()=>{ h.textContent='감정을 선택하고 지구를 클릭해 기록해요 · 드래그로 회전 · 스크롤로 확대'; h.classList.remove('hl') },2500)
+        h.textContent='👆 먼저 감정을 선택해주세요!'; h.classList.add('hl')
+        setTimeout(()=>{ h.textContent='감정을 선택하고 지구를 클릭해 기록해요'; h.classList.remove('hl') },2500)
         return
       }
-      if(postedToday){ showToast('😊','오늘은 이미 기록했어요','내일 또 와주세요 🌍'); return }
-
-      const e=em[selected]
-      showToast('⏳','기록 중...','잠깐만요')
-
-      try {
-        const { error } = await db.from('emotion_posts').insert([{ user_id: userId, lat, lng, emotion: selected }])
-        if(error) throw error
-
-        // 성공
-        postedToday = true
-        localStorage.setItem('eg_posted', todayKey)
-
-        realData = [...realData, {lat, lng, emotion: selected, isUser: true}]
-        allData = [...sampleData, ...realData]
-        globe.pointsData(allData)
-
-        const n=document.getElementById('totalNum')
-        n.textContent=(parseInt(n.textContent.replace(/,/g,''))+1).toLocaleString()
-
-        showToast(e.emoji,`${e.label} 기록 완료!`,'내일 또 만나요 🌍')
-        selected=null
-        document.querySelectorAll('.em-btn').forEach(b=>b.classList.remove('active'))
-        const h=document.getElementById('hint')
-        h.textContent='오늘의 감정이 지구에 새겨졌어요 ✨'; h.style.opacity='0.7'
-
-      } catch(err) {
-        showToast('😅','저장 실패','다시 시도해주세요')
-        console.error(err)
-      }
+      const posted = await hasPostedToday()
+      if(posted){ showToast('😊','오늘은 이미 기록했어요','내일 또 와주세요 🌍'); return }
+      recordEmotion(lat, lng)
     })
     .width(window.innerWidth).height(window.innerHeight)
 
@@ -243,11 +309,12 @@ window.onload = async function() {
   globe.controls().addEventListener('end',()=>{ rt=setTimeout(()=>globe.controls().autoRotate=true,4000) })
   window.addEventListener('resize',()=>globe.width(window.innerWidth).height(window.innerHeight))
 
-  // 실시간 구독 (다른 사람 감정 실시간 반영)
+  // 실시간 구독
   db.channel('emotion_realtime')
     .on('postgres_changes', {event:'INSERT', schema:'public', table:'emotion_posts'}, payload => {
       const p = payload.new
-      if(p.user_id !== userId) {
+      const myId = currentUser ? currentUser.id : localStorage.getItem('eg_uid')
+      if(p.user_id !== myId) {
         realData = [...realData, p]
         allData = [...sampleData, ...realData]
         globe.pointsData(allData)
@@ -257,8 +324,7 @@ window.onload = async function() {
     })
     .subscribe()
 
-  // 로딩 숨기기
-  setTimeout(() => document.getElementById('loading').classList.add('hide'), 500)
+  setTimeout(() => document.getElementById('loading').classList.add('hide'), 600)
 }
 </script>
 </body>
