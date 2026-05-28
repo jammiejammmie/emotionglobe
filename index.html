@@ -51,6 +51,22 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
 #loading .spinner { width: 40px; height: 40px; border: 2px solid rgba(255,255,255,0.1); border-top-color: #a8d8ff; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px; }
 #loading p { font-size: 12px; letter-spacing: 3px; opacity: 0.4; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+#warmth-panel {
+  position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: rgba(8,12,28,0.96); border: 1px solid rgba(255,200,80,0.2);
+  border-radius: 20px; padding: 20px 28px; text-align: center; z-index: 50;
+  opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(.34,1.56,.64,1);
+  min-width: 220px;
+}
+#warmth-panel.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+#warmth-panel .wp-emoji { font-size: 32px; margin-bottom: 6px; }
+#warmth-panel .wp-loc { font-size: 13px; font-weight: bold; margin-bottom: 4px; }
+#warmth-panel .wp-txt { font-size: 10px; opacity: 0.4; letter-spacing: 1px; margin-bottom: 14px; }
+#wp-send { background: rgba(255,200,80,0.15); border: 1px solid rgba(255,200,80,0.4); border-radius: 20px; padding: 9px 20px; color: #FFD166; font-family: 'Gowun Dodum', sans-serif; font-size: 12px; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px; }
+#wp-send:hover { background: rgba(255,200,80,0.25); transform: scale(1.03); }
+#wp-close { display: block; margin: 10px auto 0; background: none; border: none; color: white; opacity: 0.25; font-size: 11px; cursor: pointer; letter-spacing: 1px; }
+#wp-close:hover { opacity: 0.5; }
 </style>
 </head>
 <body>
@@ -68,6 +84,14 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
     <span id="user-name"></span>
     <button id="logout-btn">로그아웃</button>
   </div>
+</div>
+
+<div id="warmth-panel">
+  <div class="wp-emoji" id="wp-emoji">😢</div>
+  <div class="wp-loc" id="wp-loc">이 지역</div>
+  <div class="wp-txt">이곳에 따뜻한 빛을 보낼까요?</div>
+  <button id="wp-send">💛 위로 보내기</button>
+  <button id="wp-close">취소</button>
 </div>
 
 <div id="hint">감정을 선택하고 지구를 클릭해 기록해요 &middot; 드래그로 회전 &middot; 스크롤로 확대</div>
@@ -262,6 +286,51 @@ window.onload = async function() {
     }
   }
 
+  // Warmth 시스템
+  let warmthArcs = []
+  let warmthRings = []
+  let warmthTarget = null
+
+  function sendWarmthAnimation(fromLat, fromLng, toLat, toLng) {
+    const arcId = Date.now()
+    const newArc = { id: arcId, startLat: fromLat, startLng: fromLng, endLat: toLat, endLng: toLng }
+    warmthArcs = [...warmthArcs, newArc]
+    globe.arcsData(warmthArcs)
+    setTimeout(() => {
+      warmthArcs = warmthArcs.filter(a => a.id !== arcId)
+      globe.arcsData(warmthArcs)
+      const ringId = Date.now()
+      const newRing = { id: ringId, lat: toLat, lng: toLng }
+      warmthRings = [...warmthRings, newRing]
+      globe.ringsData(warmthRings)
+      setTimeout(() => {
+        warmthRings = warmthRings.filter(r => r.id !== ringId)
+        globe.ringsData(warmthRings)
+      }, 3500)
+    }, 5500)
+  }
+
+  function showWarmthPanel(point) {
+    warmthTarget = point
+    const e = em[point.emotion]
+    document.getElementById('wp-emoji').textContent = e?.emoji || '✨'
+    document.getElementById('wp-loc').textContent = point.city || '이 지역'
+    document.getElementById('warmth-panel').classList.add('show')
+  }
+
+  document.getElementById('wp-send').onclick = () => {
+    if (!warmthTarget) return
+    const pov = globe.pointOfView()
+    sendWarmthAnimation(pov.lat, pov.lng, warmthTarget.lat, warmthTarget.lng)
+    document.getElementById('warmth-panel').classList.remove('show')
+    showToast('💛', '따뜻한 빛을 보냈어요', '조용히, 천천히 🌍')
+    warmthTarget = null
+  }
+  document.getElementById('wp-close').onclick = () => {
+    document.getElementById('warmth-panel').classList.remove('show')
+    warmthTarget = null
+  }
+
   // 낮/밤 텍스처 (접속 시간 기준 자동)
   const hour = new Date().getUTCHours()
   const isDaytime = hour >= 6 && hour < 18
@@ -307,6 +376,25 @@ window.onload = async function() {
       const posted = await hasPostedToday()
       if(posted){ showToast('😊','오늘은 이미 기록했어요','내일 또 와주세요 🌍'); return }
       recordEmotion(lat, lng)
+    })
+    .arcsData([])
+    .arcStartLat('startLat').arcStartLng('startLng')
+    .arcEndLat('endLat').arcEndLng('endLng')
+    .arcColor(() => ['rgba(255,220,100,0.05)', 'rgba(255,200,80,0.9)', 'rgba(255,220,130,0.05)'])
+    .arcStroke(0.35)
+    .arcDashLength(0.04)
+    .arcDashGap(2)
+    .arcDashAnimateTime(5000)
+    .arcAltitude(0.25)
+    .ringsData([])
+    .ringLat('lat').ringLng('lng')
+    .ringColor(() => t => `rgba(255,200,80,${(1-t)*0.8})`)
+    .ringMaxRadius(3)
+    .ringPropagationSpeed(1.2)
+    .ringRepeatPeriod(900)
+    .onPointClick((point) => {
+      if (!point.isSample && !point.isUser) showWarmthPanel(point)
+      else if (point.isSample || point.city) showWarmthPanel(point)
     })
     .width(window.innerWidth).height(window.innerHeight)
 
