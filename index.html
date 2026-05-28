@@ -10,106 +10,243 @@
 <style>
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #03050f; font-family: 'Gowun Dodum', sans-serif; color: white; }
-#globeViz { width: 100vw; height: 100vh; }
+#globeViz { width: 100vw; height: 100vh; position: relative; z-index: 2; }
 
-#title { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); text-align: center; z-index: 20; pointer-events: none; }
-#title h1 { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 30px; font-weight: 600; letter-spacing: 3px; margin: 0; background: linear-gradient(135deg, #fff 0%, #a8d8ff 60%, #c8b4ff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-#title p { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; opacity: 0.35; margin: 5px 0 0; }
+/* 비네트 - 우주 망원경 느낌 */
+#vignette {
+  position: fixed; inset: 0; pointer-events: none; z-index: 3;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.55) 100%);
+}
 
-#stats { position: fixed; top: 28px; right: 28px; text-align: right; z-index: 20; pointer-events: none; }
-#stats .num { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 36px; line-height: 1; background: linear-gradient(135deg, #fff, #a8d8ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-#stats .lbl { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; opacity: 0.35; margin-top: 2px; }
+/* 파티클 캔버스 */
+#particles { position: fixed; inset: 0; pointer-events: none; z-index: 4; opacity: 0.5; }
 
-#user-status { position: fixed; top: 28px; left: 28px; z-index: 20; }
-#login-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 8px 16px; color: white; font-family: 'Gowun Dodum', sans-serif; font-size: 11px; cursor: pointer; letter-spacing: 1px; transition: all 0.2s; }
-#login-btn:hover { background: rgba(255,255,255,0.12); }
+/* 타이틀 - 작고 조용하게 */
+#title {
+  position: fixed; top: 36px; left: 50%; transform: translateX(-50%);
+  text-align: center; z-index: 20; pointer-events: none;
+}
+#title h1 {
+  font-family: 'Cormorant Garamond', serif; font-style: italic;
+  font-size: 15px; font-weight: 400; letter-spacing: 7px; margin: 0;
+  color: rgba(255,255,255,0.22); text-transform: uppercase;
+}
+
+/* 통계 - 오른쪽 상단, 작고 조용하게 */
+#stats {
+  position: fixed; top: 36px; right: 32px; text-align: right;
+  z-index: 20; pointer-events: none;
+}
+#stats .num {
+  font-family: 'Cormorant Garamond', serif; font-style: italic;
+  font-size: 22px; line-height: 1; color: rgba(255,255,255,0.18);
+}
+#stats .lbl { font-size: 8px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.12); margin-top: 2px; }
+
+/* 유저 상태 - 최소화 */
+#user-status { position: fixed; top: 32px; left: 32px; z-index: 20; }
+#login-btn {
+  background: transparent; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px; padding: 6px 14px; color: rgba(255,255,255,0.3);
+  font-family: 'Gowun Dodum', sans-serif; font-size: 10px; cursor: pointer;
+  letter-spacing: 1px; transition: all 0.3s;
+}
+#login-btn:hover { border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.6); }
 #user-info { display: none; align-items: center; gap: 8px; }
-#user-avatar { width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); }
-#user-name { font-size: 11px; opacity: 0.6; letter-spacing: 0.5px; }
-#logout-btn { font-size: 10px; opacity: 0.3; cursor: pointer; background: none; border: none; color: white; padding: 0; letter-spacing: 1px; }
-#logout-btn:hover { opacity: 0.6; }
+#user-avatar { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.15); opacity: 0.6; }
+#user-name { font-size: 10px; color: rgba(255,255,255,0.3); letter-spacing: 0.5px; }
+#logout-btn { font-size: 9px; color: rgba(255,255,255,0.2); cursor: pointer; background: none; border: none; letter-spacing: 1px; }
+#logout-btn:hover { color: rgba(255,255,255,0.5); }
 
-#emotions { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 20; background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.08); border-radius: 60px; padding: 10px 16px; }
-.em-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 8px 11px; border-radius: 40px; border: 1.5px solid transparent; background: transparent; transition: all 0.2s ease; color: white; }
-.em-btn:hover { background: rgba(255,255,255,0.07); transform: translateY(-2px); }
-.em-btn.active { border-color: var(--c); background: rgba(255,255,255,0.07); box-shadow: 0 0 22px var(--ch); transform: translateY(-3px); }
-.em-btn .emo { font-size: 22px; line-height: 1; }
-.em-btn .lbl { font-size: 9px; letter-spacing: 0.5px; opacity: 0.55; }
-.em-btn.active .lbl { opacity: 1; }
+/* 감정 선택 바 - 가볍고 대기적인 */
+#emotions {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 4px; z-index: 20;
+  background: rgba(255,255,255,0.025);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 50px; padding: 8px 14px;
+}
+.em-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  cursor: pointer; padding: 7px 9px; border-radius: 36px;
+  border: 1px solid transparent; background: transparent;
+  transition: all 0.25s ease; color: white; opacity: 0.55;
+}
+.em-btn:hover { opacity: 0.9; background: rgba(255,255,255,0.05); transform: translateY(-2px); }
+.em-btn.active {
+  border-color: var(--c); opacity: 1;
+  background: rgba(255,255,255,0.05);
+  box-shadow: 0 0 16px var(--ch);
+  transform: translateY(-3px);
+}
+.em-btn .emo { font-size: 18px; line-height: 1; }
+.em-btn .lbl { font-size: 8px; letter-spacing: 0.5px; opacity: 0; transition: opacity 0.2s; }
+.em-btn:hover .lbl, .em-btn.active .lbl { opacity: 0.7; }
+.em-btn.posted-today { opacity: 0.25; cursor: default; }
+.em-btn.posted-today:hover { transform: none; background: transparent; }
 
-#hint { position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%); font-size: 11px; letter-spacing: 1.5px; opacity: 0.3; text-align: center; z-index: 20; pointer-events: none; transition: all 0.4s; white-space: nowrap; }
-#hint.hl { opacity: 0.8; color: #FFD166; }
+/* 힌트 - 아주 조용하게 */
+#hint {
+  position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
+  font-size: 10px; letter-spacing: 2px; color: rgba(255,255,255,0.2);
+  text-align: center; z-index: 20; pointer-events: none;
+  transition: all 0.5s; white-space: nowrap;
+}
+#hint.hl { color: rgba(255,209,102,0.7); }
 
-#toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.85); background: rgba(8,12,28,0.96); border: 1px solid rgba(255,255,255,0.1); border-radius: 22px; padding: 28px 36px; text-align: center; z-index: 100; opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(.34,1.56,.64,1); min-width: 200px; }
-#toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
-#toast .big { font-size: 52px; display: block; margin-bottom: 12px; }
-#toast h3 { margin: 0 0 6px; font-size: 18px; font-weight: normal; }
-#toast p { margin: 0; font-size: 11px; opacity: 0.4; letter-spacing: 1.5px; }
+/* 토스트 */
+#toast {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  background: rgba(6,10,24,0.97);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 20px; padding: 24px 32px; text-align: center;
+  z-index: 100; opacity: 0; pointer-events: none;
+  transition: all 0.3s cubic-bezier(.34,1.56,.64,1); min-width: 180px;
+}
+#toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+#toast .big { font-size: 44px; display: block; margin-bottom: 10px; }
+#toast h3 { margin: 0 0 5px; font-size: 16px; font-weight: normal; color: rgba(255,255,255,0.85); }
+#toast p { margin: 0; font-size: 10px; color: rgba(255,255,255,0.3); letter-spacing: 1.5px; }
 
-#loading { position: fixed; inset: 0; background: #03050f; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 200; transition: opacity 0.8s; }
-#loading.hide { opacity: 0; pointer-events: none; }
-#loading .spinner { width: 40px; height: 40px; border: 2px solid rgba(255,255,255,0.1); border-top-color: #a8d8ff; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px; }
-#loading p { font-size: 12px; letter-spacing: 3px; opacity: 0.4; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
+/* 위로 패널 */
 #warmth-panel {
-  position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%) translateY(20px);
-  background: rgba(8,12,28,0.96); border: 1px solid rgba(255,200,80,0.2);
-  border-radius: 20px; padding: 20px 28px; text-align: center; z-index: 50;
-  opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(.34,1.56,.64,1);
-  min-width: 220px;
+  position: fixed; bottom: 130px; left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: rgba(6,10,24,0.96);
+  border: 1px solid rgba(255,200,80,0.15);
+  border-radius: 18px; padding: 18px 26px; text-align: center;
+  z-index: 50; opacity: 0; pointer-events: none;
+  transition: all 0.3s cubic-bezier(.34,1.56,.64,1); min-width: 200px;
 }
 #warmth-panel.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
-#warmth-panel .wp-emoji { font-size: 32px; margin-bottom: 6px; }
-#warmth-panel .wp-loc { font-size: 13px; font-weight: bold; margin-bottom: 4px; }
-#warmth-panel .wp-txt { font-size: 10px; opacity: 0.4; letter-spacing: 1px; margin-bottom: 14px; }
-#wp-send { background: rgba(255,200,80,0.15); border: 1px solid rgba(255,200,80,0.4); border-radius: 20px; padding: 9px 20px; color: #FFD166; font-family: 'Gowun Dodum', sans-serif; font-size: 12px; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px; }
-#wp-send:hover { background: rgba(255,200,80,0.25); transform: scale(1.03); }
-#wp-close { display: block; margin: 10px auto 0; background: none; border: none; color: white; opacity: 0.25; font-size: 11px; cursor: pointer; letter-spacing: 1px; }
-#wp-close:hover { opacity: 0.5; }
+#warmth-panel .wp-emoji { font-size: 28px; margin-bottom: 5px; }
+#warmth-panel .wp-loc { font-size: 12px; font-weight: bold; margin-bottom: 3px; color: rgba(255,255,255,0.7); }
+#warmth-panel .wp-txt { font-size: 9px; color: rgba(255,255,255,0.3); letter-spacing: 1.5px; margin-bottom: 12px; }
+#wp-send {
+  background: rgba(255,200,80,0.1); border: 1px solid rgba(255,200,80,0.3);
+  border-radius: 18px; padding: 8px 18px; color: rgba(255,209,102,0.9);
+  font-family: 'Gowun Dodum', sans-serif; font-size: 11px; cursor: pointer;
+  transition: all 0.2s; letter-spacing: 0.5px;
+}
+#wp-send:hover { background: rgba(255,200,80,0.2); }
+#wp-close {
+  display: block; margin: 8px auto 0; background: none; border: none;
+  color: rgba(255,255,255,0.2); font-size: 10px; cursor: pointer; letter-spacing: 1px;
+}
+#wp-close:hover { color: rgba(255,255,255,0.4); }
+
+/* 로딩 */
+#loading {
+  position: fixed; inset: 0; background: #03050f;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 200; transition: opacity 1s;
+}
+#loading.hide { opacity: 0; pointer-events: none; }
+#loading .spinner {
+  width: 32px; height: 32px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-top-color: rgba(168,216,255,0.5);
+  border-radius: 50%; animation: spin 1.5s linear infinite; margin-bottom: 20px;
+}
+#loading p { font-size: 10px; letter-spacing: 4px; color: rgba(255,255,255,0.2); }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 
-<div id="loading"><div class="spinner"></div><p>지구를 불러오는 중...</p></div>
+<div id="loading"><div class="spinner"></div><p>loading</p></div>
+<canvas id="particles"></canvas>
 <div id="globeViz"></div>
+<div id="vignette"></div>
 
-<div id="title"><h1>감정지구본</h1><p>Emotion Globe &middot; Live</p></div>
-<div id="stats"><div class="num" id="totalNum">-</div><div class="lbl">오늘의 감정</div></div>
+<div id="title"><h1>감정지구본</h1></div>
+<div id="stats"><div class="num" id="totalNum">—</div><div class="lbl">오늘의 감정</div></div>
 
 <div id="user-status">
-  <button id="login-btn">🔑 구글로 로그인</button>
+  <button id="login-btn">로그인</button>
   <div id="user-info">
     <img id="user-avatar" src="" alt="">
     <span id="user-name"></span>
-    <button id="logout-btn">로그아웃</button>
+    <button id="logout-btn">나가기</button>
   </div>
 </div>
+
+<div id="hint">감정을 선택하고 지구를 클릭해 기록해요</div>
+<div id="emotions"></div>
 
 <div id="warmth-panel">
   <div class="wp-emoji" id="wp-emoji">😢</div>
   <div class="wp-loc" id="wp-loc">이 지역</div>
-  <div class="wp-txt">이곳에 따뜻한 빛을 보낼까요?</div>
+  <div class="wp-txt">이곳에 따뜻한 빛을 보낼까요</div>
   <button id="wp-send">💛 위로 보내기</button>
-  <button id="wp-close">취소</button>
+  <button id="wp-close">닫기</button>
 </div>
 
-<div id="hint">감정을 선택하고 지구를 클릭해 기록해요 &middot; 드래그로 회전 &middot; 스크롤로 확대</div>
-<div id="emotions"></div>
-<div id="toast"><span class="big" id="tEmoji">😊</span><h3 id="tTitle">감정이 기록됐어요</h3><p id="tSub">내일 또 만나요 🌍</p></div>
+<div id="toast">
+  <span class="big" id="tEmoji">😊</span>
+  <h3 id="tTitle">기록됐어요</h3>
+  <p id="tSub">내일 또 만나요</p>
+</div>
 
 <script>
+// 우주 파티클
+(function() {
+  const canvas = document.getElementById('particles')
+  const ctx = canvas.getContext('2d')
+  let W, H, particles = []
+
+  function resize() {
+    W = canvas.width = window.innerWidth
+    H = canvas.height = window.innerHeight
+  }
+  resize()
+  window.addEventListener('resize', resize)
+
+  // 은하수 먼지 파티클 생성
+  for (let i = 0; i < 80; i++) {
+    particles.push({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      r: Math.random() * 1.2 + 0.2,
+      o: Math.random() * 0.4 + 0.05,
+      speed: Math.random() * 0.08 + 0.01,
+      drift: (Math.random() - 0.5) * 0.03,
+      twinkle: Math.random() * Math.PI * 2
+    })
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H)
+    const t = Date.now() / 1000
+    particles.forEach(p => {
+      p.twinkle += 0.008
+      p.y -= p.speed
+      p.x += p.drift
+      if (p.y < -2) p.y = H + 2
+      if (p.x < -2) p.x = W + 2
+      if (p.x > W + 2) p.x = -2
+      const opacity = p.o * (0.5 + 0.5 * Math.sin(p.twinkle))
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
+      ctx.fillStyle = `rgba(200,220,255,${opacity})`
+      ctx.fill()
+    })
+    requestAnimationFrame(draw)
+  }
+  draw()
+})()
+
 window.onload = async function() {
   const SUPABASE_URL = 'https://utcufydzowykkuklrstw.supabase.co'
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0Y3VmeWR6b3d5a2t1a2xyc3R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4ODAzNDUsImV4cCI6MjA5NTQ1NjM0NX0.XwiahS2BMQuThIWGntJeqRErqRGVhXH0Z-8WL39p0Ys'
   const { createClient } = supabase
   const db = createClient(SUPABASE_URL, SUPABASE_KEY)
 
-  // 로그인 상태
   let currentUser = null
   const todayKey = new Date().toISOString().split('T')[0]
 
-  // 유저 UI 업데이트
   function updateUserUI(user) {
     currentUser = user
     const loginBtn = document.getElementById('login-btn')
@@ -118,51 +255,39 @@ window.onload = async function() {
       loginBtn.style.display = 'none'
       userInfo.style.display = 'flex'
       document.getElementById('user-avatar').src = user.user_metadata?.avatar_url || ''
-      document.getElementById('user-name').textContent = user.user_metadata?.full_name?.split(' ')[0] || '익명'
+      document.getElementById('user-name').textContent = user.user_metadata?.full_name?.split(' ')[0] || ''
     } else {
       loginBtn.style.display = 'block'
       userInfo.style.display = 'none'
     }
   }
 
-  // 로그인 버튼
   document.getElementById('login-btn').onclick = async () => {
-    await db.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.href }
-    })
+    await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } })
   }
   document.getElementById('logout-btn').onclick = async () => {
-    await db.auth.signOut()
-    updateUserUI(null)
-    showToast('👋', '로그아웃 됐어요', '')
+    await db.auth.signOut(); updateUserUI(null); showToast('👋','','')
   }
 
-  // 세션 확인
   const { data: { session } } = await db.auth.getSession()
   if (session) updateUserUI(session.user)
-  db.auth.onAuthStateChange((event, session) => {
-    updateUserUI(session?.user || null)
-  })
+  db.auth.onAuthStateChange((_, s) => updateUserUI(s?.user || null))
 
-  // 오늘 기록 여부 확인
   async function hasPostedToday() {
     if (!currentUser) return localStorage.getItem('eg_posted') === todayKey
-    const { data } = await db.from('emotion_posts')
-      .select('id').eq('user_id', currentUser.id)
-      .gte('created_at', todayKey + 'T00:00:00Z').limit(1)
+    const { data } = await db.from('emotion_posts').select('id').eq('user_id', currentUser.id).gte('created_at', todayKey + 'T00:00:00Z').limit(1)
     return data && data.length > 0
   }
 
   const emotions = [
-    { key:'joy',        label:'기쁨',  emoji:'😊', color:'#FFD166', ch:'rgba(255,209,102,.35)' },
-    { key:'peace',      label:'평온',  emoji:'😌', color:'#06D6A0', ch:'rgba(6,214,160,.35)' },
-    { key:'sad',        label:'슬픔',  emoji:'😢', color:'#5B8CDB', ch:'rgba(91,140,219,.35)' },
-    { key:'anger',      label:'분노',  emoji:'😤', color:'#EF476F', ch:'rgba(239,71,111,.35)' },
-    { key:'excitement', label:'설렘',  emoji:'🤩', color:'#FF70A6', ch:'rgba(255,112,166,.35)' },
-    { key:'anxiety',    label:'불안',  emoji:'😰', color:'#9B5DE5', ch:'rgba(155,93,229,.35)' },
-    { key:'gratitude',  label:'감사',  emoji:'🥹', color:'#F4A261', ch:'rgba(244,162,97,.35)' },
-    { key:'tired',      label:'피곤',  emoji:'😴', color:'#8D99AE', ch:'rgba(141,153,174,.35)' },
+    { key:'joy',        label:'기쁨',  emoji:'😊', color:'#FFD166', ch:'rgba(255,209,102,.3)' },
+    { key:'peace',      label:'평온',  emoji:'😌', color:'#06D6A0', ch:'rgba(6,214,160,.3)' },
+    { key:'sad',        label:'슬픔',  emoji:'😢', color:'#5B8CDB', ch:'rgba(91,140,219,.3)' },
+    { key:'anger',      label:'분노',  emoji:'😤', color:'#EF476F', ch:'rgba(239,71,111,.3)' },
+    { key:'excitement', label:'설렘',  emoji:'🤩', color:'#FF70A6', ch:'rgba(255,112,166,.3)' },
+    { key:'anxiety',    label:'불안',  emoji:'😰', color:'#9B5DE5', ch:'rgba(155,93,229,.3)' },
+    { key:'gratitude',  label:'감사',  emoji:'🥹', color:'#F4A261', ch:'rgba(244,162,97,.3)' },
+    { key:'tired',      label:'피곤',  emoji:'😴', color:'#8D99AE', ch:'rgba(141,153,174,.3)' },
   ]
   const em = {}
   emotions.forEach(e => em[e.key] = e)
@@ -188,14 +313,18 @@ window.onload = async function() {
     {lat:52.52,lng:13.41,emotion:'peace',city:'베를린',count:2187,isSample:true},
     {lat:19.43,lng:-99.13,emotion:'joy',city:'멕시코시티',count:3210,isSample:true},
     {lat:-6.21,lng:106.85,emotion:'joy',city:'자카르타',count:3456,isSample:true},
+    {lat:33.69,lng:35.50,emotion:'anxiety',city:'베이루트',count:987,isSample:true},
+    {lat:15.55,lng:32.53,emotion:'anxiety',city:'하르툼',count:654,isSample:true},
+    {lat:34.53,lng:69.17,emotion:'anxiety',city:'카불',count:543,isSample:true},
+    {lat:33.34,lng:44.40,emotion:'sad',city:'바그다드',count:876,isSample:true},
+    {lat:15.35,lng:44.21,emotion:'sad',city:'사나',count:432,isSample:true},
   ]
 
   let realData = []
   try {
-    const { data } = await db.from('emotion_posts').select('*')
-      .gte('created_at', todayKey + 'T00:00:00Z').limit(1000)
+    const { data } = await db.from('emotion_posts').select('*').gte('created_at', todayKey + 'T00:00:00Z').limit(1000)
     realData = data || []
-  } catch(e) { console.log('DB 로드 실패', e) }
+  } catch(e) {}
 
   let allData = [...sampleData, ...realData]
   const sampleTotal = sampleData.reduce((a,d)=>a+d.count,0)
@@ -211,40 +340,42 @@ window.onload = async function() {
     btn.innerHTML=`<span class="emo">${e.emoji}</span><span class="lbl">${e.label}</span>`
     btn.onclick = async () => {
       const posted = await hasPostedToday()
-      if(posted){ showToast('😊','오늘은 이미 기록했어요','내일 또 와주세요 🌍'); return }
+      if(posted){ showToast('😊','오늘은 이미 기록했어요','내일 또 만나요'); return }
       selected = selected===e.key ? null : e.key
       document.querySelectorAll('.em-btn').forEach(b=>b.classList.toggle('active',b.dataset.key===selected))
       const h=document.getElementById('hint')
-      if(selected){
-        const ex=em[selected]
-        h.textContent=`${ex.emoji} ${ex.label} 선택됨 · 지구를 클릭하거나 📍 버튼으로 내 위치 자동감지`
-        h.classList.add('hl')
-      } else {
-        h.textContent='감정을 선택하고 지구를 클릭해 기록해요 · 드래그로 회전 · 스크롤로 확대'
-        h.classList.remove('hl')
-      }
+      if(selected){ const ex=em[selected]; h.textContent=`${ex.emoji} 선택됨 · 지구를 클릭하거나 📍로 내 위치 기록`; h.classList.add('hl') }
+      else{ h.textContent='감정을 선택하고 지구를 클릭해 기록해요'; h.classList.remove('hl') }
     }
     emEl.appendChild(btn)
   })
 
-  // GPS 버튼
+  // GPS 버튼 - 독립적으로 동작
   const gpsBtn = document.createElement('button')
   gpsBtn.className='em-btn'
-  gpsBtn.style.borderColor='rgba(255,255,255,0.2)'
   gpsBtn.innerHTML=`<span class="emo">📍</span><span class="lbl">내위치</span>`
-  gpsBtn.onclick = async () => {
-    if(!selected){ showToast('👆','감정을 먼저 선택해주세요',''); return }
-    const posted = await hasPostedToday()
-    if(posted){ showToast('😊','오늘은 이미 기록했어요','내일 또 와주세요 🌍'); return }
-    showToast('📍','위치 확인 중...','잠깐만요')
+  gpsBtn.onclick = () => {
+    showToast('📍','위치 확인 중...','')
     navigator.geolocation.getCurrentPosition(
-      pos => recordEmotion(pos.coords.latitude, pos.coords.longitude),
+      async pos => {
+        const { latitude: lat, longitude: lng } = pos.coords
+        // 항상 내 위치로 지구 이동
+        globe.pointOfView({ lat, lng, altitude: 1.6 }, 1500)
+        // 감정 선택돼 있으면 기록도 함
+        if (selected) {
+          const posted = await hasPostedToday()
+          if (!posted) { recordEmotion(lat, lng) }
+          else { showToast('🌍','내 위치로 이동했어요','') }
+        } else {
+          showToast('🌍','내 위치로 이동했어요','')
+        }
+      },
       () => showToast('😅','위치 접근 실패','지구를 직접 클릭해주세요')
     )
   }
   emEl.appendChild(gpsBtn)
 
-  function showToast(emoji, title, sub, dur=2800){
+  function showToast(emoji, title, sub, dur=2400){
     document.getElementById('tEmoji').textContent=emoji
     document.getElementById('tTitle').textContent=title
     document.getElementById('tSub').textContent=sub
@@ -255,7 +386,6 @@ window.onload = async function() {
   async function recordEmotion(lat, lng) {
     const e = em[selected]
     const userId = currentUser ? currentUser.id : (localStorage.getItem('eg_uid') || (() => { const id='u_'+Date.now().toString(36)+Math.random().toString(36).substr(2,5); localStorage.setItem('eg_uid',id); return id })())
-    showToast('⏳','기록 중...','')
     try {
       const { error } = await db.from('emotion_posts').insert([{ user_id: userId, lat, lng, emotion: selected }])
       if(error) throw error
@@ -267,46 +397,32 @@ window.onload = async function() {
       setTimeout(() => { globe.controls().autoRotate = true }, 3500)
       const n=document.getElementById('totalNum')
       n.textContent=(parseInt(n.textContent.replace(/,/g,''))+1).toLocaleString()
-      showToast(e.emoji,`${e.label} 기록 완료!`,'내일 또 만나요 🌍')
-      // 오늘 기록한 감정 버튼 표시
+      showToast(e.emoji,`${e.label} 기록 완료`,'내일 또 만나요 🌍')
       document.querySelectorAll('.em-btn').forEach(b => {
-        if(b.dataset.key === selected) {
-          b.querySelector('.lbl').textContent = '오늘 ✓'
-          b.style.border = '1.5px solid ' + em[selected].color
-        } else if(b.dataset.key) {
-          b.style.opacity = '0.4'
-        }
+        if(b.dataset.key === selected) { b.querySelector('.lbl').textContent='오늘 ✓'; b.style.borderColor=em[selected].color }
+        else if(b.dataset.key) { b.style.opacity='0.2' }
         b.classList.remove('active')
       })
       selected=null
       const h=document.getElementById('hint')
-      h.textContent='오늘의 감정이 지구에 새겨졌어요 ✨'; h.style.opacity='0.7'
-    } catch(err) {
-      showToast('😅','저장 실패','다시 시도해주세요')
-    }
+      h.textContent='오늘의 감정이 지구에 새겨졌어요'; h.style.color='rgba(255,255,255,0.25)'
+    } catch(err) { showToast('😅','저장 실패','다시 시도해주세요') }
   }
 
   // Warmth 시스템
-  let warmthArcs = []
-  let warmthRings = []
-  let warmthTarget = null
+  let warmthArcs = [], warmthRings = [], warmthTarget = null
 
   function sendWarmthAnimation(fromLat, fromLng, toLat, toLng) {
     const arcId = Date.now()
-    const newArc = { id: arcId, startLat: fromLat, startLng: fromLng, endLat: toLat, endLng: toLng }
-    warmthArcs = [...warmthArcs, newArc]
+    warmthArcs = [...warmthArcs, { id: arcId, startLat: fromLat, startLng: fromLng, endLat: toLat, endLng: toLng }]
     globe.arcsData(warmthArcs)
     setTimeout(() => {
       warmthArcs = warmthArcs.filter(a => a.id !== arcId)
       globe.arcsData(warmthArcs)
       const ringId = Date.now()
-      const newRing = { id: ringId, lat: toLat, lng: toLng }
-      warmthRings = [...warmthRings, newRing]
+      warmthRings = [...warmthRings, { id: ringId, lat: toLat, lng: toLng }]
       globe.ringsData(warmthRings)
-      setTimeout(() => {
-        warmthRings = warmthRings.filter(r => r.id !== ringId)
-        globe.ringsData(warmthRings)
-      }, 3500)
+      setTimeout(() => { warmthRings = warmthRings.filter(r => r.id !== ringId); globe.ringsData(warmthRings) }, 4000)
     }, 5500)
   }
 
@@ -319,111 +435,112 @@ window.onload = async function() {
   }
 
   document.getElementById('wp-send').onclick = () => {
-    if (!warmthTarget) return
+    if(!warmthTarget) return
     const pov = globe.pointOfView()
     sendWarmthAnimation(pov.lat, pov.lng, warmthTarget.lat, warmthTarget.lng)
     document.getElementById('warmth-panel').classList.remove('show')
-    showToast('💛', '따뜻한 빛을 보냈어요', '조용히, 천천히 🌍')
+    showToast('💛','따뜻한 빛을 보냈어요','조용히, 천천히 🌍')
     warmthTarget = null
   }
   document.getElementById('wp-close').onclick = () => {
-    document.getElementById('warmth-panel').classList.remove('show')
-    warmthTarget = null
+    document.getElementById('warmth-panel').classList.remove('show'); warmthTarget = null
   }
 
-  // 낮/밤 텍스처 (접속 시간 기준 자동)
+  // 낮/밤 텍스처
   const hour = new Date().getUTCHours()
-  const isDaytime = hour >= 6 && hour < 18
-  const earthTex = isDaytime
+  const earthTex = (hour >= 6 && hour < 18)
     ? 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'
     : 'https://unpkg.com/three-globe/example/img/earth-night.jpg'
 
   const globe = Globe()(document.getElementById('globeViz'))
     .globeImageUrl(earthTex)
     .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
-    .atmosphereColor('#64b4ff')
-    .atmosphereAltitude(0.14)
+    .atmosphereColor('#4a8fcc')
+    .atmosphereAltitude(0.18)
+    // 감정 마커 - 부드럽고 대기적인
     .pointsData(allData)
     .pointLat('lat').pointLng('lng')
     .pointColor(d => {
       const e = em[d.emotion]
-      if (!e) return '#fff'
-      return d.isSample ? e.color + '55' : e.color
+      if (!e) return 'rgba(255,255,255,0.3)'
+      if (d.isUser) return e.color
+      if (d.isSample) return e.color + '44'
+      return e.color + 'aa'
     })
     .pointRadius(d => {
-      if (d.isUser) return 0.7
-      if (d.isSample) return Math.min(Math.sqrt((d.count||1)/100)*0.45, 1.8)
-      return 0.6
+      if (d.isUser) return 0.55
+      if (d.isSample) return Math.min(Math.sqrt((d.count||1)/100)*0.38, 1.4)
+      return 0.5
     })
-    .pointAltitude(0.015)
-    .pointResolution(8)
+    .pointAltitude(d => d.isUser ? 0.025 : 0.008)
+    .pointResolution(12)
     .pointLabel(d => {
-      const e=em[d.emotion]
-      const label = d.isUser ? '나의 감정 ✨' : d.city ? d.city : '익명의 감정'
-      return `<div style="background:rgba(5,8,22,.94);border:1px solid rgba(255,255,255,.1);padding:10px 14px;border-radius:14px;color:white;font-family:'Gowun Dodum',sans-serif;font-size:13px">
-        <div style="font-size:20px;margin-bottom:5px">${e?.emoji||'✨'}</div>
-        <div style="font-weight:bold;margin-bottom:2px">${label}</div>
-        <div style="color:${e?.color||'#fff'};font-size:11px">${e?.label||d.emotion}</div>
+      const e = em[d.emotion]
+      const loc = d.isUser ? '나의 감정 ✨' : d.city || '익명의 감정'
+      return `<div style="background:rgba(3,5,15,.95);border:1px solid rgba(255,255,255,.07);padding:10px 14px;border-radius:12px;color:white;font-family:'Gowun Dodum',sans-serif;font-size:12px;line-height:1.6">
+        <div style="font-size:18px;margin-bottom:4px">${e?.emoji||'✨'}</div>
+        <div style="font-weight:bold;opacity:0.8">${loc}</div>
+        <div style="color:${e?.color};font-size:10px;opacity:0.7">${e?.label||''}</div>
       </div>`
     })
-    .onGlobeClick(async ({lat,lng}) => {
-      if(!selected){
-        const h=document.getElementById('hint')
-        h.textContent='👆 먼저 감정을 선택해주세요!'; h.classList.add('hl')
-        setTimeout(()=>{ h.textContent='감정을 선택하고 지구를 클릭해 기록해요'; h.classList.remove('hl') },2500)
-        return
-      }
-      const posted = await hasPostedToday()
-      if(posted){ showToast('😊','오늘은 이미 기록했어요','내일 또 와주세요 🌍'); return }
-      recordEmotion(lat, lng)
-    })
+    // 주변광 링 (힘든 지역에 은은한 별빛 펄스)
+    .ringsData(sampleData.filter(d => ['sad','anxiety','anger'].includes(d.emotion) && d.count > 1000))
+    .ringLat('lat').ringLng('lng')
+    .ringColor(d => { const e=em[d.emotion]; return t => `rgba(${hexToRgb(e?.color||'#fff')},${(1-t)*0.12})` })
+    .ringMaxRadius(2.5)
+    .ringPropagationSpeed(0.4)
+    .ringRepeatPeriod(4000)
+    // Arc (위로 보내기)
     .arcsData([])
     .arcStartLat('startLat').arcStartLng('startLng')
     .arcEndLat('endLat').arcEndLng('endLng')
-    .arcColor(() => ['rgba(255,220,100,0.05)', 'rgba(255,200,80,0.9)', 'rgba(255,220,130,0.05)'])
-    .arcStroke(0.35)
-    .arcDashLength(0.04)
+    .arcColor(() => ['rgba(255,220,100,0.03)','rgba(255,200,80,0.85)','rgba(255,220,100,0.03)'])
+    .arcStroke(0.3)
+    .arcDashLength(0.035)
     .arcDashGap(2)
     .arcDashAnimateTime(5000)
-    .arcAltitude(0.25)
-    .ringsData([])
-    .ringLat('lat').ringLng('lng')
-    .ringColor(() => t => `rgba(255,200,80,${(1-t)*0.8})`)
-    .ringMaxRadius(3)
-    .ringPropagationSpeed(1.2)
-    .ringRepeatPeriod(900)
-    .onPointClick((point) => {
-      if (!point.isSample && !point.isUser) showWarmthPanel(point)
-      else if (point.isSample || point.city) showWarmthPanel(point)
+    .arcAltitude(0.28)
+    .onPointClick(point => showWarmthPanel(point))
+    .onGlobeClick(async ({lat,lng}) => {
+      if(!selected){
+        const h=document.getElementById('hint')
+        h.textContent='감정을 먼저 선택해주세요'; h.classList.add('hl')
+        setTimeout(()=>{ h.textContent='감정을 선택하고 지구를 클릭해 기록해요'; h.classList.remove('hl') },2000)
+        return
+      }
+      const posted = await hasPostedToday()
+      if(posted){ showToast('😊','오늘은 이미 기록했어요','내일 또 만나요'); return }
+      recordEmotion(lat, lng)
     })
     .width(window.innerWidth).height(window.innerHeight)
 
-  globe.controls().autoRotate=true
-  globe.controls().autoRotateSpeed=0.4
-  globe.controls().enableDamping=true
-  globe.controls().dampingFactor=0.08
+  globe.controls().autoRotate = true
+  globe.controls().autoRotateSpeed = 0.3
+  globe.controls().enableDamping = true
+  globe.controls().dampingFactor = 0.06
 
   let rt
-  globe.controls().addEventListener('start',()=>{ globe.controls().autoRotate=false; clearTimeout(rt) })
-  globe.controls().addEventListener('end',()=>{ rt=setTimeout(()=>globe.controls().autoRotate=true,4000) })
-  window.addEventListener('resize',()=>globe.width(window.innerWidth).height(window.innerHeight))
+  globe.controls().addEventListener('start', () => { globe.controls().autoRotate=false; clearTimeout(rt) })
+  globe.controls().addEventListener('end', () => { rt=setTimeout(()=>globe.controls().autoRotate=true, 5000) })
+  window.addEventListener('resize', () => globe.width(window.innerWidth).height(window.innerHeight))
 
-  // 실시간 구독
-  db.channel('emotion_realtime')
-    .on('postgres_changes', {event:'INSERT', schema:'public', table:'emotion_posts'}, payload => {
-      const p = payload.new
-      const myId = currentUser ? currentUser.id : localStorage.getItem('eg_uid')
-      if(p.user_id !== myId) {
-        realData = [...realData, p]
-        allData = [...sampleData, ...realData]
-        globe.pointsData(allData)
+  // 실시간
+  db.channel('emotion_rt')
+    .on('postgres_changes', {event:'INSERT',schema:'public',table:'emotion_posts'}, payload => {
+      const p=payload.new, myId=currentUser?currentUser.id:localStorage.getItem('eg_uid')
+      if(p.user_id!==myId){
+        realData=[...realData,p]; allData=[...sampleData,...realData]; globe.pointsData(allData)
         const n=document.getElementById('totalNum')
         n.textContent=(parseInt(n.textContent.replace(/,/g,''))+1).toLocaleString()
       }
-    })
-    .subscribe()
+    }).subscribe()
 
-  setTimeout(() => document.getElementById('loading').classList.add('hide'), 600)
+  setTimeout(()=>document.getElementById('loading').classList.add('hide'), 700)
+}
+
+function hexToRgb(hex) {
+  const r=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return r ? `${parseInt(r[1],16)},${parseInt(r[2],16)},${parseInt(r[3],16)}` : '255,255,255'
 }
 </script>
 </body>
