@@ -411,11 +411,22 @@ window.onload = async function() {
 
   document.getElementById('wp-send').onclick = () => {
     if(!warmthTarget) return
-    const pov=globe.pointOfView()
-    sendWarmthAnimation(pov.lat, pov.lng, warmthTarget.lat, warmthTarget.lng)
+    const target = warmthTarget
     document.getElementById('warmth-panel').classList.remove('show')
-    showToast('💛','따뜻한 빛을 보냈어요','조용히, 천천히 🌍')
     warmthTarget=null
+
+    // 1. 내 위치 기준 시작점 계산
+    const pov = globe.pointOfView()
+    const fromLat = pov.lat, fromLng = pov.lng
+
+    // 2. 출발지가 보이도록 지구 회전
+    globe.pointOfView({ lat: (fromLat + target.lat)/2, lng: (fromLng + target.lng)/2, altitude: 2.0 }, 1200)
+
+    // 3. 회전 완료 후 arc 시작
+    setTimeout(() => {
+      sendWarmthAnimation(fromLat, fromLng, target.lat, target.lng)
+      showToast('💛','따뜻한 빛을 보냈어요','조용히, 천천히 🌍')
+    }, 1300)
   }
   document.getElementById('wp-close').onclick = () => {
     document.getElementById('warmth-panel').classList.remove('show'); warmthTarget=null
@@ -425,8 +436,8 @@ window.onload = async function() {
   // GLOBE
   // ─────────────────────────────────────────
   const globe = Globe()(document.getElementById('globeViz'))
-    .globeImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg')
-    .backgroundImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/night-sky.png')
+    .globeImageUrl('https://utcufydzowykkuklrstw.supabase.co/storage/v1/object/public/textures/default/day.jpg')
+    .backgroundImageUrl('https://utcufydzowykkuklrstw.supabase.co/storage/v1/object/public/textures/default/space.png')
     .atmosphereColor('#4a8fcc')
     .atmosphereAltitude(0.18)
     .pointsData(allData)
@@ -442,8 +453,8 @@ window.onload = async function() {
     .ringMaxRadius(2.5).ringPropagationSpeed(0.4).ringRepeatPeriod(4000)
     .arcsData([])
     .arcStartLat('startLat').arcStartLng('startLng').arcEndLat('endLat').arcEndLng('endLng')
-    .arcColor(()=>['rgba(255,220,100,0.03)','rgba(255,200,80,0.85)','rgba(255,220,100,0.03)'])
-    .arcStroke(0.3).arcDashLength(0.035).arcDashGap(2).arcDashAnimateTime(5000).arcAltitude(0.28)
+    .arcColor(()=>['rgba(255,220,100,0.1)','rgba(255,210,80,1.0)','rgba(255,220,100,0.1)'])
+    .arcStroke(0.6).arcDashLength(0.06).arcDashGap(1.8).arcDashAnimateTime(4000).arcAltitude(0.3)
     .onPointClick(point => showWarmthPanel(point))
     .onGlobeClick(async ({lat,lng}) => {
       if(!selected) {
