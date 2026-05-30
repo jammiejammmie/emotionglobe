@@ -760,90 +760,219 @@ function ageToAlpha(age) {
 
 
 // ─────────────────────────────────────────
-// CITIES — 장소가 감정을 실재하게 만든다
-// tier 1: 항상 표시 / tier 2: 중간 줌 / tier 3: 가까운 줌
+// PLACES — 모든 감정은 실제 장소에 속한다
+//
+// tier 1: 주요 도시 (먼 줌에서 표시)
+// tier 2: 중소 도시 (중간 줌에서 표시)
+// tier 3: 소도시/지역 (가까운 줌에서 표시)
+//
+// 원칙: 전주에 사는 사람의 감정은 서울이 아닌 전주에 속한다.
+//       반경 내 도시가 없으면 "이 지역"으로 표시한다.
 // ─────────────────────────────────────────
 const ALL_CITIES = [
-  // Asia
-  { name:'Seoul',         lat:37.57,  lng:126.98, tier:1, country:'KR' },
-  { name:'Busan',         lat:35.18,  lng:129.08, tier:2, country:'KR' },
-  { name:'Tokyo',         lat:35.68,  lng:139.65, tier:1, country:'JP' },
-  { name:'Osaka',         lat:34.69,  lng:135.50, tier:2, country:'JP' },
-  { name:'Beijing',       lat:39.90,  lng:116.41, tier:1, country:'CN' },
-  { name:'Shanghai',      lat:31.23,  lng:121.47, tier:1, country:'CN' },
-  { name:'Chengdu',       lat:30.57,  lng:104.07, tier:2, country:'CN' },
-  { name:'Delhi',         lat:28.61,  lng:77.21,  tier:1, country:'IN' },
-  { name:'Mumbai',        lat:19.08,  lng:72.88,  tier:1, country:'IN' },
-  { name:'Bangalore',     lat:12.97,  lng:77.59,  tier:2, country:'IN' },
-  { name:'Dhaka',         lat:23.81,  lng:90.41,  tier:1, country:'BD' },
-  { name:'Karachi',       lat:24.86,  lng:67.01,  tier:1, country:'PK' },
-  { name:'Jakarta',       lat:-6.21,  lng:106.85, tier:1, country:'ID' },
-  { name:'Manila',        lat:14.60,  lng:120.98, tier:1, country:'PH' },
-  { name:'Bangkok',       lat:13.76,  lng:100.50, tier:1, country:'TH' },
-  { name:'Singapore',     lat:1.35,   lng:103.82, tier:2, country:'SG' },
-  { name:'Kuala Lumpur',  lat:3.14,   lng:101.69, tier:2, country:'MY' },
-  { name:'Ho Chi Minh',   lat:10.82,  lng:106.63, tier:2, country:'VN' },
-  { name:'Yangon',        lat:16.87,  lng:96.19,  tier:2, country:'MM' },
-  { name:'Taipei',        lat:25.03,  lng:121.56, tier:2, country:'TW' },
-  // Middle East
-  { name:'Istanbul',      lat:41.01,  lng:28.95,  tier:1, country:'TR' },
-  { name:'Tehran',        lat:35.69,  lng:51.39,  tier:1, country:'IR' },
-  { name:'Riyadh',        lat:24.71,  lng:46.68,  tier:1, country:'SA' },
-  { name:'Dubai',         lat:25.20,  lng:55.27,  tier:2, country:'AE' },
-  { name:'Baghdad',       lat:33.34,  lng:44.40,  tier:2, country:'IQ' },
-  { name:'Beirut',        lat:33.89,  lng:35.50,  tier:2, country:'LB' },
-  { name:'Kabul',         lat:34.53,  lng:69.17,  tier:2, country:'AF' },
-  // Europe
-  { name:'Moscow',        lat:55.76,  lng:37.62,  tier:1, country:'RU' },
-  { name:'London',        lat:51.51,  lng:-0.13,  tier:1, country:'GB' },
-  { name:'Paris',         lat:48.86,  lng:2.35,   tier:1, country:'FR' },
-  { name:'Berlin',        lat:52.52,  lng:13.41,  tier:2, country:'DE' },
-  { name:'Madrid',        lat:40.42,  lng:-3.70,  tier:2, country:'ES' },
-  { name:'Rome',          lat:41.90,  lng:12.50,  tier:2, country:'IT' },
-  { name:'Kyiv',          lat:50.45,  lng:30.52,  tier:1, country:'UA' },
-  { name:'Warsaw',        lat:52.23,  lng:21.01,  tier:2, country:'PL' },
-  { name:'Amsterdam',     lat:52.37,  lng:4.90,   tier:2, country:'NL' },
-  { name:'Stockholm',     lat:59.33,  lng:18.07,  tier:2, country:'SE' },
-  // Africa
-  { name:'Cairo',         lat:30.04,  lng:31.24,  tier:1, country:'EG' },
-  { name:'Lagos',         lat:6.52,   lng:3.38,   tier:1, country:'NG' },
-  { name:'Kinshasa',      lat:-4.32,  lng:15.32,  tier:1, country:'CD' },
-  { name:'Nairobi',       lat:-1.29,  lng:36.82,  tier:1, country:'KE' },
-  { name:'Johannesburg',  lat:-26.20, lng:28.05,  tier:2, country:'ZA' },
-  { name:'Addis Ababa',   lat:9.03,   lng:38.74,  tier:2, country:'ET' },
-  { name:'Khartoum',      lat:15.55,  lng:32.53,  tier:2, country:'SD' },
-  { name:'Casablanca',    lat:33.59,  lng:-7.62,  tier:2, country:'MA' },
-  { name:'Accra',         lat:5.56,   lng:-0.20,  tier:2, country:'GH' },
-  { name:"Sana'a",        lat:15.35,  lng:44.21,  tier:2, country:'YE' },
-  // Americas
-  { name:'New York',      lat:40.71,  lng:-74.01, tier:1, country:'US' },
-  { name:'Los Angeles',   lat:34.05,  lng:-118.24,tier:1, country:'US' },
-  { name:'Chicago',       lat:41.88,  lng:-87.63, tier:2, country:'US' },
-  { name:'Houston',       lat:29.76,  lng:-95.37, tier:2, country:'US' },
-  { name:'Miami',         lat:25.76,  lng:-80.19, tier:2, country:'US' },
-  { name:'Toronto',       lat:43.65,  lng:-79.38, tier:2, country:'CA' },
-  { name:'Mexico City',   lat:19.43,  lng:-99.13, tier:1, country:'MX' },
-  { name:'São Paulo',     lat:-23.55, lng:-46.63, tier:1, country:'BR' },
-  { name:'Rio de Janeiro',lat:-22.91, lng:-43.17, tier:2, country:'BR' },
-  { name:'Buenos Aires',  lat:-34.60, lng:-58.38, tier:1, country:'AR' },
-  { name:'Bogotá',        lat:4.71,   lng:-74.07, tier:2, country:'CO' },
-  { name:'Lima',          lat:-12.05, lng:-77.04, tier:2, country:'PE' },
-  { name:'Santiago',      lat:-33.45, lng:-70.67, tier:2, country:'CL' },
-  // Oceania
-  { name:'Sydney',        lat:-33.87, lng:151.21, tier:1, country:'AU' },
-  { name:'Melbourne',     lat:-37.81, lng:144.96, tier:2, country:'AU' },
-  { name:'Auckland',      lat:-36.85, lng:174.76, tier:2, country:'NZ' },
+
+  // ── 한국 tier 1 (광역시 이상) ──
+  { name:'Seoul',    lat:37.5665, lng:126.978,  tier:1, country:'KR' },
+  { name:'Busan',    lat:35.1796, lng:129.0756, tier:1, country:'KR' },
+  { name:'Incheon',  lat:37.4563, lng:126.7052, tier:1, country:'KR' },
+  { name:'Daegu',    lat:35.8714, lng:128.6014, tier:1, country:'KR' },
+  { name:'Daejeon',  lat:36.3504, lng:127.3845, tier:1, country:'KR' },
+  { name:'Gwangju',  lat:35.1595, lng:126.8526, tier:1, country:'KR' },
+  { name:'Ulsan',    lat:35.5384, lng:129.3114, tier:1, country:'KR' },
+
+  // ── 한국 tier 2 (주요 시) ──
+  { name:'Jeju',     lat:33.4996, lng:126.5312, tier:2, country:'KR' },
+  { name:'Suwon',    lat:37.2636, lng:127.0286, tier:2, country:'KR' },
+  { name:'Changwon', lat:35.2280, lng:128.6811, tier:2, country:'KR' },
+  { name:'Jeonju',   lat:35.8242, lng:127.1479, tier:2, country:'KR' },
+  { name:'Cheongju', lat:36.6424, lng:127.4890, tier:2, country:'KR' },
+  { name:'Pohang',   lat:36.0190, lng:129.3435, tier:2, country:'KR' },
+  { name:'Sejong',   lat:36.4800, lng:127.2890, tier:2, country:'KR' },
+  { name:'Goyang',   lat:37.6583, lng:126.8320, tier:2, country:'KR' },
+  { name:'Yongin',   lat:37.2411, lng:127.1775, tier:2, country:'KR' },
+  { name:'Seongnam', lat:37.4449, lng:127.1388, tier:2, country:'KR' },
+  { name:'Gimhae',   lat:35.2342, lng:128.8891, tier:2, country:'KR' },
+  { name:'Ansan',    lat:37.3219, lng:126.8309, tier:2, country:'KR' },
+
+  // ── 한국 tier 3 (중소 도시) ──
+  { name:'Gyeongju', lat:35.8562, lng:129.2247, tier:3, country:'KR' },
+  { name:'Chuncheon',lat:37.8813, lng:127.7298, tier:3, country:'KR' },
+  { name:'Gangneung',lat:37.7519, lng:128.8760, tier:3, country:'KR' },
+  { name:'Mokpo',    lat:34.8118, lng:126.3922, tier:3, country:'KR' },
+  { name:'Yeosu',    lat:34.7604, lng:127.6622, tier:3, country:'KR' },
+  { name:'Jinju',    lat:35.1800, lng:128.1076, tier:3, country:'KR' },
+  { name:'Andong',   lat:36.5684, lng:128.7294, tier:3, country:'KR' },
+  { name:'Gumi',     lat:36.1197, lng:128.3445, tier:3, country:'KR' },
+  { name:'Iksan',    lat:35.9439, lng:126.9547, tier:3, country:'KR' },
+  { name:'Wonju',    lat:37.3422, lng:127.9202, tier:3, country:'KR' },
+  { name:'Gimpo',    lat:37.6154, lng:126.7158, tier:3, country:'KR' },
+  { name:'Pyeongtaek',lat:36.9922,lng:127.1128, tier:3, country:'KR' },
+  { name:'Namyangju',lat:37.6360, lng:127.2165, tier:3, country:'KR' },
+  { name:'Hwaseong', lat:37.1997, lng:126.8311, tier:3, country:'KR' },
+  { name:'Yangsan',  lat:35.3350, lng:129.0370, tier:3, country:'KR' },
+  { name:'Geoje',    lat:34.8800, lng:128.6214, tier:3, country:'KR' },
+  { name:'Tongyeong',lat:34.8544, lng:128.4336, tier:3, country:'KR' },
+  { name:'Sacheon',  lat:35.0042, lng:128.0640, tier:3, country:'KR' },
+  { name:'Gimcheon', lat:36.1196, lng:128.1136, tier:3, country:'KR' },
+  { name:'Sangju',   lat:36.4150, lng:128.1604, tier:3, country:'KR' },
+  { name:'Mungyeong',lat:36.5939, lng:128.1864, tier:3, country:'KR' },
+  { name:'Yeongju',  lat:36.8057, lng:128.6236, tier:3, country:'KR' },
+  { name:'Sokcho',   lat:38.2070, lng:128.5918, tier:3, country:'KR' },
+  { name:'Donghae',  lat:37.5244, lng:129.1142, tier:3, country:'KR' },
+  { name:'Samcheok', lat:37.4500, lng:129.1650, tier:3, country:'KR' },
+  { name:'Taebaek',  lat:37.1650, lng:128.9860, tier:3, country:'KR' },
+  { name:'Naju',     lat:35.0160, lng:126.7105, tier:3, country:'KR' },
+  { name:'Suncheon', lat:34.9500, lng:127.4872, tier:3, country:'KR' },
+  { name:'Gwangyang',lat:34.9397, lng:127.6958, tier:3, country:'KR' },
+  { name:'Boryeong', lat:36.3382, lng:126.5563, tier:3, country:'KR' },
+  { name:'Seosan',   lat:36.7848, lng:126.4503, tier:3, country:'KR' },
+  { name:'Asan',     lat:36.7898, lng:127.0046, tier:3, country:'KR' },
+  { name:'Cheonan',  lat:36.8151, lng:127.1139, tier:3, country:'KR' },
+  { name:'Gongju',   lat:36.4465, lng:127.1191, tier:3, country:'KR' },
+  { name:'Nonsan',   lat:36.1871, lng:127.0990, tier:3, country:'KR' },
+  { name:'Gunsan',   lat:35.9680, lng:126.7369, tier:3, country:'KR' },
+  { name:'Jeongeup', lat:35.5700, lng:126.8548, tier:3, country:'KR' },
+  { name:'Namwon',   lat:35.4161, lng:127.3901, tier:3, country:'KR' },
+  { name:'Wanju',    lat:35.9044, lng:127.1579, tier:3, country:'KR' },
+
+  // ── 아시아 주요 도시 ──
+  { name:'Tokyo',       lat:35.68,  lng:139.65, tier:1, country:'JP' },
+  { name:'Osaka',       lat:34.69,  lng:135.50, tier:2, country:'JP' },
+  { name:'Nagoya',      lat:35.18,  lng:136.91, tier:2, country:'JP' },
+  { name:'Sapporo',     lat:43.07,  lng:141.35, tier:2, country:'JP' },
+  { name:'Fukuoka',     lat:33.59,  lng:130.40, tier:2, country:'JP' },
+  { name:'Beijing',     lat:39.90,  lng:116.41, tier:1, country:'CN' },
+  { name:'Shanghai',    lat:31.23,  lng:121.47, tier:1, country:'CN' },
+  { name:'Chengdu',     lat:30.57,  lng:104.07, tier:2, country:'CN' },
+  { name:'Guangzhou',   lat:23.13,  lng:113.26, tier:2, country:'CN' },
+  { name:'Shenzhen',    lat:22.54,  lng:114.06, tier:2, country:'CN' },
+  { name:'Delhi',       lat:28.61,  lng:77.21,  tier:1, country:'IN' },
+  { name:'Mumbai',      lat:19.08,  lng:72.88,  tier:1, country:'IN' },
+  { name:'Bangalore',   lat:12.97,  lng:77.59,  tier:2, country:'IN' },
+  { name:'Chennai',     lat:13.08,  lng:80.27,  tier:2, country:'IN' },
+  { name:'Kolkata',     lat:22.57,  lng:88.36,  tier:2, country:'IN' },
+  { name:'Jakarta',     lat:-6.21,  lng:106.85, tier:1, country:'ID' },
+  { name:'Surabaya',    lat:-7.25,  lng:112.75, tier:2, country:'ID' },
+  { name:'Manila',      lat:14.60,  lng:120.98, tier:1, country:'PH' },
+  { name:'Bangkok',     lat:13.76,  lng:100.50, tier:1, country:'TH' },
+  { name:'Singapore',   lat:1.35,   lng:103.82, tier:1, country:'SG' },
+  { name:'Kuala Lumpur',lat:3.14,   lng:101.69, tier:2, country:'MY' },
+  { name:'Ho Chi Minh', lat:10.82,  lng:106.63, tier:2, country:'VN' },
+  { name:'Hanoi',       lat:21.03,  lng:105.85, tier:2, country:'VN' },
+  { name:'Taipei',      lat:25.03,  lng:121.56, tier:1, country:'TW' },
+  { name:'Dhaka',       lat:23.81,  lng:90.41,  tier:1, country:'BD' },
+  { name:'Karachi',     lat:24.86,  lng:67.01,  tier:1, country:'PK' },
+  { name:'Lahore',      lat:31.55,  lng:74.34,  tier:2, country:'PK' },
+
+  // ── 중동 ──
+  { name:'Istanbul',    lat:41.01,  lng:28.95,  tier:1, country:'TR' },
+  { name:'Ankara',      lat:39.93,  lng:32.86,  tier:2, country:'TR' },
+  { name:'Tehran',      lat:35.69,  lng:51.39,  tier:1, country:'IR' },
+  { name:'Riyadh',      lat:24.71,  lng:46.68,  tier:1, country:'SA' },
+  { name:'Dubai',       lat:25.20,  lng:55.27,  tier:1, country:'AE' },
+  { name:'Baghdad',     lat:33.34,  lng:44.40,  tier:2, country:'IQ' },
+  { name:'Beirut',      lat:33.89,  lng:35.50,  tier:2, country:'LB' },
+  { name:'Kabul',       lat:34.53,  lng:69.17,  tier:2, country:'AF' },
+  { name:"Sana'a",      lat:15.35,  lng:44.21,  tier:2, country:'YE' },
+
+  // ── 유럽 ──
+  { name:'Moscow',      lat:55.76,  lng:37.62,  tier:1, country:'RU' },
+  { name:'St. Petersburg',lat:59.95,lng:30.32,  tier:2, country:'RU' },
+  { name:'London',      lat:51.51,  lng:-0.13,  tier:1, country:'GB' },
+  { name:'Manchester',  lat:53.48,  lng:-2.24,  tier:2, country:'GB' },
+  { name:'Paris',       lat:48.86,  lng:2.35,   tier:1, country:'FR' },
+  { name:'Marseille',   lat:43.30,  lng:5.37,   tier:2, country:'FR' },
+  { name:'Berlin',      lat:52.52,  lng:13.41,  tier:1, country:'DE' },
+  { name:'Hamburg',     lat:53.55,  lng:10.00,  tier:2, country:'DE' },
+  { name:'Madrid',      lat:40.42,  lng:-3.70,  tier:1, country:'ES' },
+  { name:'Barcelona',   lat:41.39,  lng:2.15,   tier:2, country:'ES' },
+  { name:'Rome',        lat:41.90,  lng:12.50,  tier:1, country:'IT' },
+  { name:'Milan',       lat:45.47,  lng:9.19,   tier:2, country:'IT' },
+  { name:'Kyiv',        lat:50.45,  lng:30.52,  tier:1, country:'UA' },
+  { name:'Warsaw',      lat:52.23,  lng:21.01,  tier:2, country:'PL' },
+  { name:'Amsterdam',   lat:52.37,  lng:4.90,   tier:2, country:'NL' },
+  { name:'Stockholm',   lat:59.33,  lng:18.07,  tier:2, country:'SE' },
+  { name:'Vienna',      lat:48.21,  lng:16.37,  tier:2, country:'AT' },
+  { name:'Prague',      lat:50.08,  lng:14.44,  tier:2, country:'CZ' },
+
+  // ── 아프리카 ──
+  { name:'Cairo',       lat:30.04,  lng:31.24,  tier:1, country:'EG' },
+  { name:'Lagos',       lat:6.52,   lng:3.38,   tier:1, country:'NG' },
+  { name:'Abuja',       lat:9.06,   lng:7.49,   tier:2, country:'NG' },
+  { name:'Kinshasa',    lat:-4.32,  lng:15.32,  tier:1, country:'CD' },
+  { name:'Nairobi',     lat:-1.29,  lng:36.82,  tier:1, country:'KE' },
+  { name:'Johannesburg',lat:-26.20, lng:28.05,  tier:1, country:'ZA' },
+  { name:'Cape Town',   lat:-33.93, lng:18.42,  tier:2, country:'ZA' },
+  { name:'Addis Ababa', lat:9.03,   lng:38.74,  tier:2, country:'ET' },
+  { name:'Khartoum',    lat:15.55,  lng:32.53,  tier:2, country:'SD' },
+  { name:'Casablanca',  lat:33.59,  lng:-7.62,  tier:2, country:'MA' },
+  { name:'Accra',       lat:5.56,   lng:-0.20,  tier:2, country:'GH' },
+  { name:'Dar es Salaam',lat:-6.79, lng:39.21,  tier:2, country:'TZ' },
+  { name:'Kampala',     lat:0.32,   lng:32.58,  tier:2, country:'UG' },
+  { name:'Dakar',       lat:14.72,  lng:-17.47, tier:2, country:'SN' },
+  { name:'Luanda',      lat:-8.84,  lng:13.23,  tier:2, country:'AO' },
+
+  // ── 아메리카 ──
+  { name:'New York',    lat:40.71,  lng:-74.01, tier:1, country:'US' },
+  { name:'Los Angeles', lat:34.05,  lng:-118.24,tier:1, country:'US' },
+  { name:'Chicago',     lat:41.88,  lng:-87.63, tier:1, country:'US' },
+  { name:'Houston',     lat:29.76,  lng:-95.37, tier:2, country:'US' },
+  { name:'Phoenix',     lat:33.45,  lng:-112.07,tier:2, country:'US' },
+  { name:'Miami',       lat:25.76,  lng:-80.19, tier:2, country:'US' },
+  { name:'Seattle',     lat:47.61,  lng:-122.33,tier:2, country:'US' },
+  { name:'Boston',      lat:42.36,  lng:-71.06, tier:2, country:'US' },
+  { name:'Toronto',     lat:43.65,  lng:-79.38, tier:1, country:'CA' },
+  { name:'Vancouver',   lat:49.25,  lng:-123.12,tier:2, country:'CA' },
+  { name:'Montreal',    lat:45.50,  lng:-73.57, tier:2, country:'CA' },
+  { name:'Mexico City', lat:19.43,  lng:-99.13, tier:1, country:'MX' },
+  { name:'Guadalajara', lat:20.66,  lng:-103.35,tier:2, country:'MX' },
+  { name:'São Paulo',   lat:-23.55, lng:-46.63, tier:1, country:'BR' },
+  { name:'Rio de Janeiro',lat:-22.91,lng:-43.17,tier:2, country:'BR' },
+  { name:'Brasília',    lat:-15.78, lng:-47.93, tier:2, country:'BR' },
+  { name:'Buenos Aires',lat:-34.60, lng:-58.38, tier:1, country:'AR' },
+  { name:'Bogotá',      lat:4.71,   lng:-74.07, tier:2, country:'CO' },
+  { name:'Lima',        lat:-12.05, lng:-77.04, tier:2, country:'PE' },
+  { name:'Santiago',    lat:-33.45, lng:-70.67, tier:2, country:'CL' },
+  { name:'Caracas',     lat:10.48,  lng:-66.88, tier:2, country:'VE' },
+  { name:'Quito',       lat:-0.23,  lng:-78.52, tier:2, country:'EC' },
+  { name:'La Paz',      lat:-16.50, lng:-68.15, tier:2, country:'BO' },
+  { name:'Havana',      lat:23.13,  lng:-82.38, tier:2, country:'CU' },
+
+  // ── 오세아니아 ──
+  { name:'Sydney',      lat:-33.87, lng:151.21, tier:1, country:'AU' },
+  { name:'Melbourne',   lat:-37.81, lng:144.96, tier:1, country:'AU' },
+  { name:'Brisbane',    lat:-27.47, lng:153.03, tier:2, country:'AU' },
+  { name:'Perth',       lat:-31.95, lng:115.86, tier:2, country:'AU' },
+  { name:'Adelaide',    lat:-34.93, lng:138.60, tier:2, country:'AU' },
+  { name:'Auckland',    lat:-36.85, lng:174.76, tier:1, country:'NZ' },
+  { name:'Wellington',  lat:-41.29, lng:174.78, tier:2, country:'NZ' },
 ]
 
-// 가장 가까운 도시 찾기 (실제 감정 데이터용)
-function nearestCity(lat, lng, maxDistDeg = 6) {
-  let nearest = null, minDist = Infinity
-  ALL_CITIES.forEach(c => {
-    const d = Math.sqrt(Math.pow(c.lat-lat,2)+Math.pow(c.lng-lng,2))
-    if (d < minDist) { minDist = d; nearest = c }
+// ─────────────────────────────────────────
+// nearestPlace — 철학: 가장 가까운 작은 장소 우선
+// 반경 내 장소 없으면 null 반환 (→ "이 지역"으로 표시)
+// 서울 같은 대도시로 강제 흡수하지 않는다
+// ─────────────────────────────────────────
+function nearestPlace(lat, lng, maxDistDeg = 0.8) {
+  const candidates = ALL_CITIES
+    .map(c => ({ ...c, dist: Math.sqrt(Math.pow(c.lat-lat,2)+Math.pow(c.lng-lng,2)) }))
+    .filter(c => c.dist <= maxDistDeg)
+
+  if (candidates.length === 0) return null  // 근처에 등록된 장소 없음 → "이 지역"
+
+  // 가중치 점수: 가까울수록 + 작은 도시일수록 선호
+  // tier 3(소도시)이 tier 1(대도시)보다 가중치 높음
+  candidates.sort((a, b) => {
+    const scoreA = a.dist / (a.tier * 0.6)
+    const scoreB = b.dist / (b.tier * 0.6)
+    return scoreA - scoreB
   })
-  return minDist <= maxDistDeg ? nearest : null
+
+  return candidates[0]
 }
+
+// 하위 호환성 (기존 코드가 nearestCity를 호출하는 곳이 있을 수 있음)
+function nearestCity(lat, lng) { return nearestPlace(lat, lng) }
 
 
 function hexToRgb(hex) {
