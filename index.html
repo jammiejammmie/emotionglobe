@@ -398,7 +398,7 @@ window.onload = async function() {
       const rid=Date.now()
       warmthRings=[...warmthRings, {id:rid, lat:toLat, lng:toLng}]; globe.ringsData(warmthRings)
       setTimeout(()=>{ warmthRings=warmthRings.filter(r=>r.id!==rid); globe.ringsData(warmthRings) }, 4000)
-    }, 5500)
+    }, 13000)
   }
 
   function showWarmthPanel(point) {
@@ -465,11 +465,11 @@ window.onload = async function() {
     .arcsData([])
     .arcStartLat('startLat').arcStartLng('startLng').arcEndLat('endLat').arcEndLng('endLng')
     .arcColor(()=>'rgba(255,215,80,1.0)')
-    .arcStroke(1.4)
+    .arcStroke(1.0)
     .arcDashLength(0.04)
     .arcDashGap(0.96)
-    .arcDashAnimateTime(5000)
-    .arcAltitude(0.35)
+    .arcDashAnimateTime(12000)
+    .arcAltitude(0.01)
     .onPointClick(point => showWarmthPanel(point))
     .onGlobeClick(async ({lat,lng}) => {
       if(!selected) {
