@@ -428,7 +428,7 @@ window.onload = async function() {
       const rid=Date.now()
       warmthRings=[...warmthRings, {id:rid, lat:toLat, lng:toLng}]; globe.ringsData(warmthRings)
       setTimeout(()=>{ warmthRings=warmthRings.filter(r=>r.id!==rid); globe.ringsData(warmthRings) }, 4000)
-    }, 13000)
+    }, 11500)
   }
 
   function showWarmthPanel(point) {
@@ -526,6 +526,16 @@ window.onload = async function() {
     .arcDashGap(0.96)
     .arcDashAnimateTime(12000)
     .arcAltitude(0.01)
+    .labelsData(ALL_CITIES.filter(c => c.tier === 1))
+    .labelLat('lat')
+    .labelLng('lng')
+    .labelText('name')
+    .labelColor(d => d.tier === 1 ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.5)')
+    .labelSize(d => d.tier === 1 ? 0.65 : 0.48)
+    .labelDotRadius(d => d.tier === 1 ? 0.22 : 0.15)
+    .labelDotOrientation(() => 'bottom')
+    .labelAltitude(0.01)
+    .labelResolution(3)
     .onPointClick(point => showWarmthPanel(point))
     .onGlobeClick(async ({lat,lng}) => {
       if(!selected) {
@@ -555,7 +565,7 @@ window.onload = async function() {
         if (mat.bumpMap) {
           mat.bumpMap.anisotropy = maxAniso
           mat.bumpMap.needsUpdate = true
-          mat.bumpScale = 0.5  // 지형 굴곡 강도
+          mat.bumpScale = 0.25  // 지형 굴곡 강도
         }
         mat.needsUpdate = true
       })
@@ -569,6 +579,27 @@ window.onload = async function() {
   let rt
   globe.controls().addEventListener('start',()=>{ globe.controls().autoRotate=false; clearTimeout(rt) })
   globe.controls().addEventListener('end',()=>{ rt=setTimeout(()=>globe.controls().autoRotate=true,5000) })
+
+  // 줌 레벨에 따른 도시 레이블 업데이트
+  let labelTimer
+  globe.controls().addEventListener('change', () => {
+    clearTimeout(labelTimer)
+    labelTimer = setTimeout(() => {
+      const alt = globe.pointOfView().altitude
+      const visible = alt > 2.2
+        ? ALL_CITIES.filter(c => c.tier === 1)
+        : alt > 0.9
+        ? ALL_CITIES.filter(c => c.tier <= 2)
+        : ALL_CITIES
+      globe.labelsData(visible)
+        .labelColor(d => alt > 2.2
+          ? 'rgba(255,255,255,0.65)'
+          : 'rgba(255,255,255,0.75)')
+        .labelSize(d => alt > 2.2
+          ? (d.tier===1 ? 0.65 : 0.48)
+          : (d.tier===1 ? 0.55 : 0.42))
+    }, 150)
+  })
   window.addEventListener('resize',()=>globe.width(window.innerWidth).height(window.innerHeight))
 
   // 실시간
@@ -713,6 +744,93 @@ function getPointAge(createdAt) {
 function ageToAlpha(age) {
   const alpha = Math.round((1 - age * 0.8) * 255)
   return alpha.toString(16).padStart(2, '0')
+}
+
+
+// ─────────────────────────────────────────
+// CITIES — 장소가 감정을 실재하게 만든다
+// tier 1: 항상 표시 / tier 2: 중간 줌 / tier 3: 가까운 줌
+// ─────────────────────────────────────────
+const ALL_CITIES = [
+  // Asia
+  { name:'Seoul',         lat:37.57,  lng:126.98, tier:1, country:'KR' },
+  { name:'Busan',         lat:35.18,  lng:129.08, tier:2, country:'KR' },
+  { name:'Tokyo',         lat:35.68,  lng:139.65, tier:1, country:'JP' },
+  { name:'Osaka',         lat:34.69,  lng:135.50, tier:2, country:'JP' },
+  { name:'Beijing',       lat:39.90,  lng:116.41, tier:1, country:'CN' },
+  { name:'Shanghai',      lat:31.23,  lng:121.47, tier:1, country:'CN' },
+  { name:'Chengdu',       lat:30.57,  lng:104.07, tier:2, country:'CN' },
+  { name:'Delhi',         lat:28.61,  lng:77.21,  tier:1, country:'IN' },
+  { name:'Mumbai',        lat:19.08,  lng:72.88,  tier:1, country:'IN' },
+  { name:'Bangalore',     lat:12.97,  lng:77.59,  tier:2, country:'IN' },
+  { name:'Dhaka',         lat:23.81,  lng:90.41,  tier:1, country:'BD' },
+  { name:'Karachi',       lat:24.86,  lng:67.01,  tier:1, country:'PK' },
+  { name:'Jakarta',       lat:-6.21,  lng:106.85, tier:1, country:'ID' },
+  { name:'Manila',        lat:14.60,  lng:120.98, tier:1, country:'PH' },
+  { name:'Bangkok',       lat:13.76,  lng:100.50, tier:1, country:'TH' },
+  { name:'Singapore',     lat:1.35,   lng:103.82, tier:2, country:'SG' },
+  { name:'Kuala Lumpur',  lat:3.14,   lng:101.69, tier:2, country:'MY' },
+  { name:'Ho Chi Minh',   lat:10.82,  lng:106.63, tier:2, country:'VN' },
+  { name:'Yangon',        lat:16.87,  lng:96.19,  tier:2, country:'MM' },
+  { name:'Taipei',        lat:25.03,  lng:121.56, tier:2, country:'TW' },
+  // Middle East
+  { name:'Istanbul',      lat:41.01,  lng:28.95,  tier:1, country:'TR' },
+  { name:'Tehran',        lat:35.69,  lng:51.39,  tier:1, country:'IR' },
+  { name:'Riyadh',        lat:24.71,  lng:46.68,  tier:1, country:'SA' },
+  { name:'Dubai',         lat:25.20,  lng:55.27,  tier:2, country:'AE' },
+  { name:'Baghdad',       lat:33.34,  lng:44.40,  tier:2, country:'IQ' },
+  { name:'Beirut',        lat:33.89,  lng:35.50,  tier:2, country:'LB' },
+  { name:'Kabul',         lat:34.53,  lng:69.17,  tier:2, country:'AF' },
+  // Europe
+  { name:'Moscow',        lat:55.76,  lng:37.62,  tier:1, country:'RU' },
+  { name:'London',        lat:51.51,  lng:-0.13,  tier:1, country:'GB' },
+  { name:'Paris',         lat:48.86,  lng:2.35,   tier:1, country:'FR' },
+  { name:'Berlin',        lat:52.52,  lng:13.41,  tier:2, country:'DE' },
+  { name:'Madrid',        lat:40.42,  lng:-3.70,  tier:2, country:'ES' },
+  { name:'Rome',          lat:41.90,  lng:12.50,  tier:2, country:'IT' },
+  { name:'Kyiv',          lat:50.45,  lng:30.52,  tier:1, country:'UA' },
+  { name:'Warsaw',        lat:52.23,  lng:21.01,  tier:2, country:'PL' },
+  { name:'Amsterdam',     lat:52.37,  lng:4.90,   tier:2, country:'NL' },
+  { name:'Stockholm',     lat:59.33,  lng:18.07,  tier:2, country:'SE' },
+  // Africa
+  { name:'Cairo',         lat:30.04,  lng:31.24,  tier:1, country:'EG' },
+  { name:'Lagos',         lat:6.52,   lng:3.38,   tier:1, country:'NG' },
+  { name:'Kinshasa',      lat:-4.32,  lng:15.32,  tier:1, country:'CD' },
+  { name:'Nairobi',       lat:-1.29,  lng:36.82,  tier:1, country:'KE' },
+  { name:'Johannesburg',  lat:-26.20, lng:28.05,  tier:2, country:'ZA' },
+  { name:'Addis Ababa',   lat:9.03,   lng:38.74,  tier:2, country:'ET' },
+  { name:'Khartoum',      lat:15.55,  lng:32.53,  tier:2, country:'SD' },
+  { name:'Casablanca',    lat:33.59,  lng:-7.62,  tier:2, country:'MA' },
+  { name:'Accra',         lat:5.56,   lng:-0.20,  tier:2, country:'GH' },
+  { name:"Sana'a",        lat:15.35,  lng:44.21,  tier:2, country:'YE' },
+  // Americas
+  { name:'New York',      lat:40.71,  lng:-74.01, tier:1, country:'US' },
+  { name:'Los Angeles',   lat:34.05,  lng:-118.24,tier:1, country:'US' },
+  { name:'Chicago',       lat:41.88,  lng:-87.63, tier:2, country:'US' },
+  { name:'Houston',       lat:29.76,  lng:-95.37, tier:2, country:'US' },
+  { name:'Miami',         lat:25.76,  lng:-80.19, tier:2, country:'US' },
+  { name:'Toronto',       lat:43.65,  lng:-79.38, tier:2, country:'CA' },
+  { name:'Mexico City',   lat:19.43,  lng:-99.13, tier:1, country:'MX' },
+  { name:'São Paulo',     lat:-23.55, lng:-46.63, tier:1, country:'BR' },
+  { name:'Rio de Janeiro',lat:-22.91, lng:-43.17, tier:2, country:'BR' },
+  { name:'Buenos Aires',  lat:-34.60, lng:-58.38, tier:1, country:'AR' },
+  { name:'Bogotá',        lat:4.71,   lng:-74.07, tier:2, country:'CO' },
+  { name:'Lima',          lat:-12.05, lng:-77.04, tier:2, country:'PE' },
+  { name:'Santiago',      lat:-33.45, lng:-70.67, tier:2, country:'CL' },
+  // Oceania
+  { name:'Sydney',        lat:-33.87, lng:151.21, tier:1, country:'AU' },
+  { name:'Melbourne',     lat:-37.81, lng:144.96, tier:2, country:'AU' },
+  { name:'Auckland',      lat:-36.85, lng:174.76, tier:2, country:'NZ' },
+]
+
+// 가장 가까운 도시 찾기 (실제 감정 데이터용)
+function nearestCity(lat, lng, maxDistDeg = 6) {
+  let nearest = null, minDist = Infinity
+  ALL_CITIES.forEach(c => {
+    const d = Math.sqrt(Math.pow(c.lat-lat,2)+Math.pow(c.lng-lng,2))
+    if (d < minDist) { minDist = d; nearest = c }
+  })
+  return minDist <= maxDistDeg ? nearest : null
 }
 
 
