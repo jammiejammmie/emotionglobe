@@ -378,8 +378,6 @@ window.onload = async function() {
       const n=document.getElementById('totalNum')
       n.textContent=(parseInt(n.textContent.replace(/,/g,''))+1).toLocaleString()
       showToast(e.emoji,`${e.label} 기록 완료`,'내일 또 만나요 🌍')
-      updateAtmosphereEmotion()
-      updateEmotionPulse()
       document.querySelectorAll('.em-btn').forEach(b => {
         if(b.dataset.key===selected){ b.querySelector('.lbl').textContent='오늘 ✓'; b.style.borderColor=em[selected].color }
         else if(b.dataset.key) b.style.opacity='0.2'
@@ -450,11 +448,17 @@ window.onload = async function() {
   // ─────────────────────────────────────────
   // GLOBE
   // ─────────────────────────────────────────
+  // 텍스처 우선순위: Supabase Storage → NASA CDN fallback
+  const EARTH_TEX = 'https://utcufydzowykkuklrstw.supabase.co/storage/v1/object/public/textures/default/day.jpg'
+  const BUMP_TEX  = 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-topology.png'
+  const BG_TEX    = 'https://cdn.jsdelivr.net/npm/three-globe/example/img/night-sky.png'
+
   const globe = Globe()(document.getElementById('globeViz'))
-    .globeImageUrl('https://utcufydzowykkuklrstw.supabase.co/storage/v1/object/public/textures/default/day.jpg')
-    .backgroundImageUrl('https://utcufydzowykkuklrstw.supabase.co/storage/v1/object/public/textures/default/space.png')
-    .atmosphereColor('#4a8fcc')
-    .atmosphereAltitude(0.18)
+    .globeImageUrl(EARTH_TEX)
+    .bumpImageUrl(BUMP_TEX)
+    .backgroundImageUrl(BG_TEX)
+    .atmosphereColor('#5ca0e0')
+    .atmosphereAltitude(0.16)
     .pointsData(allData)
     .pointLat('lat').pointLng('lng')
     .pointColor(d => {
@@ -506,6 +510,30 @@ window.onload = async function() {
     })
     .width(window.innerWidth).height(window.innerHeight)
 
+  // 텍스처 선명도 최대화 (anisotropic filtering)
+  setTimeout(() => {
+    try {
+      const maxAniso = globe.renderer().capabilities.getMaxAnisotropy()
+      globe.scene().traverse(obj => {
+        if (!obj.isMesh || !obj.material) return
+        const mat = obj.material
+        // 메인 텍스처
+        if (mat.map) {
+          mat.map.anisotropy = maxAniso
+          mat.map.needsUpdate = true
+        }
+        // bump map
+        if (mat.bumpMap) {
+          mat.bumpMap.anisotropy = maxAniso
+          mat.bumpMap.needsUpdate = true
+          mat.bumpScale = 0.5  // 지형 굴곡 강도
+        }
+        mat.needsUpdate = true
+      })
+      console.log('✅ Anisotropic filtering:', maxAniso, 'x')
+    } catch(e) { console.warn('Texture quality setup failed:', e) }
+  }, 2000)
+
   globe.controls().autoRotate=true; globe.controls().autoRotateSpeed=0.3
   globe.controls().enableDamping=true; globe.controls().dampingFactor=0.06
 
@@ -522,8 +550,6 @@ window.onload = async function() {
         realData=[...realData,p]; allData=[...sampleData,...realData]; globe.pointsData(allData)
         const n=document.getElementById('totalNum')
         n.textContent=(parseInt(n.textContent.replace(/,/g,''))+1).toLocaleString()
-        updateAtmosphereEmotion()
-        updateEmotionPulse()
       }
     }).subscribe()
 
@@ -540,57 +566,7 @@ window.onload = async function() {
     if (r.ok) globe.globeImageUrl(storageDayUrl)
   }).catch(() => {})
 
-  // ─────────────────────────────────────────
-  // 살아있는 지구 루프
-  // ─────────────────────────────────────────
 
-  // 1. 숨쉬는 대기권
-  let breathPhase = 0
-  setInterval(() => {
-    breathPhase += 0.015
-    const breath = 0.17 + Math.sin(breathPhase) * 0.025
-    globe.atmosphereAltitude(breath)
-  }, 50)
-
-  // 2. 감정이 대기권 색을 물들임
-  function updateAtmosphereEmotion() {
-    const counts = {}
-    realData.forEach(d => { if(d.emotion && em[d.emotion]) counts[d.emotion] = (counts[d.emotion]||0)+1 })
-    const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1])
-    if (sorted.length === 0) return
-    const dominant = sorted[0][0]
-    const dominantColor = em[dominant]?.color || '#4a8fcc'
-    // base 파란색과 감정 색을 20% 블렌딩
-    const blended = blendHexColors('#4a8fcc', dominantColor, 0.2)
-    globe.atmosphereColor(blended)
-  }
-  // 처음 로드 + 새 데이터 들어올 때마다 업데이트
-  setTimeout(updateAtmosphereEmotion, 1000)
-
-  // 3. 모든 실제 감정 흔적에 맥박 rings
-  function updateEmotionPulse() {
-    const pulseData = realData
-      .filter(d => d.created_at)
-      .map((d,i) => ({
-        ...d,
-        // 각 점마다 약간 다른 속도로 pulse
-        _pulseSpeed: 0.3 + (i % 5) * 0.1,
-        _pulseRadius: 1.5 + (i % 3) * 0.5,
-      }))
-    // sample 데이터의 힘든 지역도 유지
-    const samplePulse = sampleData.filter(d=>['sad','anxiety','anger'].includes(d.emotion)&&d.count>1000)
-    globe.ringsData([...samplePulse, ...pulseData.slice(0,30)])  // 최근 30개만
-      .ringLat('lat').ringLng('lng')
-      .ringColor(d => {
-        const e = em[d.emotion]
-        const age = d.created_at ? getPointAge(d.created_at) : 0
-        return t => `rgba(${hexToRgb(e?.color||'#fff')},${(1-t)*(0.15 - age*0.1)})`
-      })
-      .ringMaxRadius(d => d._pulseRadius || 2.5)
-      .ringPropagationSpeed(d => d._pulseSpeed || 0.4)
-      .ringRepeatPeriod(d => 3000 + (d.count||0) % 2000)
-  }
-  setTimeout(updateEmotionPulse, 1200)
 }
 
 // ─────────────────────────────────────────
@@ -688,14 +664,6 @@ function ageToAlpha(age) {
   return alpha.toString(16).padStart(2, '0')
 }
 
-function blendHexColors(hex1, hex2, ratio) {
-  const r1 = parseInt(hex1.slice(1,3),16), g1 = parseInt(hex1.slice(3,5),16), b1 = parseInt(hex1.slice(5,7),16)
-  const r2 = parseInt(hex2.slice(1,3),16), g2 = parseInt(hex2.slice(3,5),16), b2 = parseInt(hex2.slice(5,7),16)
-  const r = Math.round(r1*(1-ratio)+r2*ratio)
-  const g = Math.round(g1*(1-ratio)+g2*ratio)
-  const b = Math.round(b1*(1-ratio)+b2*ratio)
-  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`
-}
 
 function hexToRgb(hex) {
   const r=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
