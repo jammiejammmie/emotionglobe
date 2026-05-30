@@ -409,24 +409,35 @@ window.onload = async function() {
     document.getElementById('warmth-panel').classList.add('show')
   }
 
+  function startWarmthJourney(fromLat, fromLng, target) {
+    // 두 지점이 모두 보이도록 지구 회전
+    const midLat = (fromLat + target.lat) / 2
+    const midLng = (fromLng + target.lng) / 2
+    const dist = Math.sqrt(Math.pow(fromLat-target.lat,2)+Math.pow(fromLng-target.lng,2))
+    const alt = Math.min(Math.max(dist/50, 1.4), 2.8)
+    globe.pointOfView({ lat:midLat, lng:midLng, altitude:alt }, 1500)
+    setTimeout(() => {
+      sendWarmthAnimation(fromLat, fromLng, target.lat, target.lng)
+      showToast('💛','따뜻한 빛을 보냈어요','조용히, 천천히 🌍')
+    }, 1600)
+  }
+
   document.getElementById('wp-send').onclick = () => {
     if(!warmthTarget) return
     const target = warmthTarget
     document.getElementById('warmth-panel').classList.remove('show')
-    warmthTarget=null
-
-    // 1. 내 위치 기준 시작점 계산
-    const pov = globe.pointOfView()
-    const fromLat = pov.lat, fromLng = pov.lng
-
-    // 2. 출발지가 보이도록 지구 회전
-    globe.pointOfView({ lat: (fromLat + target.lat)/2, lng: (fromLng + target.lng)/2, altitude: 2.0 }, 1200)
-
-    // 3. 회전 완료 후 arc 시작
-    setTimeout(() => {
-      sendWarmthAnimation(fromLat, fromLng, target.lat, target.lng)
-      showToast('💛','따뜻한 빛을 보냈어요','조용히, 천천히 🌍')
-    }, 1300)
+    warmthTarget = null
+    showToast('📍','위치 확인 중...','')
+    // GPS로 내 실제 위치 가져오기
+    navigator.geolocation.getCurrentPosition(
+      pos => startWarmthJourney(pos.coords.latitude, pos.coords.longitude, target),
+      () => {
+        // GPS 실패 시 현재 POV 사용
+        const pov = globe.pointOfView()
+        startWarmthJourney(pov.lat, pov.lng, target)
+      },
+      { timeout: 3000 }
+    )
   }
   document.getElementById('wp-close').onclick = () => {
     document.getElementById('warmth-panel').classList.remove('show'); warmthTarget=null
@@ -453,8 +464,12 @@ window.onload = async function() {
     .ringMaxRadius(2.5).ringPropagationSpeed(0.4).ringRepeatPeriod(4000)
     .arcsData([])
     .arcStartLat('startLat').arcStartLng('startLng').arcEndLat('endLat').arcEndLng('endLng')
-    .arcColor(()=>['rgba(255,220,100,0.1)','rgba(255,210,80,1.0)','rgba(255,220,100,0.1)'])
-    .arcStroke(0.6).arcDashLength(0.06).arcDashGap(1.8).arcDashAnimateTime(4000).arcAltitude(0.3)
+    .arcColor(()=>'rgba(255,215,80,0.95)')
+    .arcStroke(0.9)
+    .arcDashLength(0.025)
+    .arcDashGap(500)
+    .arcDashAnimateTime(4500)
+    .arcAltitude(0.35)
     .onPointClick(point => showWarmthPanel(point))
     .onGlobeClick(async ({lat,lng}) => {
       if(!selected) {
