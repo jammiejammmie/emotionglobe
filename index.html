@@ -149,51 +149,79 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
 // 나중에 스킨 추가 시 여기만 수정하면 됨
 // ─────────────────────────────────────────
 const STORAGE = 'https://utcufydzowykkuklrstw.supabase.co/storage/v1/object/public/textures'
-// Supabase Storage 설정 전 fallback CDN
-const CDN = 'https://cdn.jsdelivr.net/npm/three-globe/example/img'
+const CDN    = 'https://cdn.jsdelivr.net/npm/three-globe/example/img'
 
+// ─────────────────────────────────────────
+// SKINS — 살아있는 감정 행성의 렌즈 시스템
+// 새 스킨 추가: 이 객체에 항목만 추가하면 됨
+// 판매/잠금/선물: locked 값과 Supabase RLS로 제어
+// ─────────────────────────────────────────
 const SKINS = {
   default: {
     label: 'Blue Marble',
     emoji: '🌍',
     locked: false,
-    day:   `${STORAGE}/default/day.jpg`,
-    night: `${STORAGE}/default/night.jpg`,
-    bg:    `${STORAGE}/default/space.png`,
+    // 텍스처
+    textures: {
+      day:    `${STORAGE}/default/day.jpg`,
+      night:  `${STORAGE}/default/night.jpg`,
+      clouds: `${STORAGE}/default/clouds.png`,
+      space:  `${STORAGE}/default/space.png`,
+    },
     fallback: {
       day:   `${CDN}/earth-blue-marble.jpg`,
       night: `${CDN}/earth-night.jpg`,
-      bg:    `${CDN}/night-sky.png`,
-    }
+      space: `${CDN}/night-sky.png`,
+    },
+    // 감정 흔적이 이 렌즈에서 어떻게 보이는가
+    traceStyle: {
+      altitudeBase: 0.02,   // 지표면 위 기본 높이
+      radiusScale:  1.0,    // 점 크기 배율
+      glowOpacity:  1.0,    // 글로우 강도
+    },
+    // 위로 빛이 이 렌즈에서 어떻게 느껴지는가
+    warmthStyle: {
+      color:       '#FFD580',
+      strokeWidth: 1.0,
+      speedMs:     12000,    // 이동 시간 (ms)
+      altitude:    0.01,
+    },
+    // 대기권
+    atmosphereStyle: {
+      color:    '#5ca0e0',
+      altitude: 0.16,
+    },
   },
+
+  // 이하 placeholder — 텍스처만 추가하면 즉시 활성화 가능
   pixel: {
-    label: 'Pixel Earth',
-    emoji: '👾',
-    locked: true,
-    day:   `${STORAGE}/pixel/day.jpg`,
-    night: `${STORAGE}/pixel/night.jpg`,
-    bg:    `${STORAGE}/pixel/space.png`,
-    fallback: null
+    label: 'Pixel Earth', emoji: '👾', locked: true,
+    textures: { day:`${STORAGE}/pixel/day.jpg`, night:`${STORAGE}/pixel/night.jpg`, space:`${STORAGE}/pixel/space.png` },
+    fallback: null,
+    traceStyle:     { altitudeBase:0.03, radiusScale:1.2, glowOpacity:0.4 },
+    warmthStyle:    { color:'#00FF88', strokeWidth:1.5, speedMs:8000, altitude:0.02 },
+    atmosphereStyle:{ color:'#004422', altitude:0.10 },
   },
   minimal: {
-    label: 'Minimal',
-    emoji: '◌',
-    locked: true,
-    day:   `${STORAGE}/minimal/day.jpg`,
-    night: `${STORAGE}/minimal/night.jpg`,
-    bg:    `${STORAGE}/minimal/space.png`,
-    fallback: null
+    label: 'Minimal', emoji: '◌', locked: true,
+    textures: { day:`${STORAGE}/minimal/day.jpg`, night:`${STORAGE}/minimal/night.jpg`, space:`${STORAGE}/minimal/space.png` },
+    fallback: null,
+    traceStyle:     { altitudeBase:0.015, radiusScale:0.8, glowOpacity:1.5 },
+    warmthStyle:    { color:'#ffffff', strokeWidth:0.6, speedMs:16000, altitude:0.005 },
+    atmosphereStyle:{ color:'#1a1a2e', altitude:0.08 },
   },
   watercolor: {
-    label: 'Watercolor',
-    emoji: '🎨',
-    locked: true,
-    day:   `${STORAGE}/watercolor/day.jpg`,
-    night: `${STORAGE}/watercolor/night.jpg`,
-    bg:    `${STORAGE}/watercolor/space.png`,
-    fallback: null
-  }
+    label: 'Watercolor', emoji: '🎨', locked: true,
+    textures: { day:`${STORAGE}/watercolor/day.jpg`, night:`${STORAGE}/watercolor/night.jpg`, space:`${STORAGE}/watercolor/space.png` },
+    fallback: null,
+    traceStyle:     { altitudeBase:0.02, radiusScale:1.3, glowOpacity:0.8 },
+    warmthStyle:    { color:'#FFB3D9', strokeWidth:1.2, speedMs:14000, altitude:0.015 },
+    atmosphereStyle:{ color:'#d4a8c7', altitude:0.20 },
+  },
 }
+
+// 현재 적용된 스킨
+let currentSkin = SKINS.default
 
 // ─────────────────────────────────────────
 // 파티클
@@ -471,17 +499,18 @@ window.onload = async function() {
       return e.color + alpha
     })
     .pointRadius(d => {
-      if (d.isUser) return 0.55
-      if (d.isSample) return Math.min(Math.sqrt((d.count||1)/100)*0.38, 1.4)
-      // 나이에 따라 크기도 줄어듦
+      const ts = currentSkin.traceStyle
+      if (d.isUser) return 0.55 * ts.radiusScale
+      if (d.isSample) return Math.min(Math.sqrt((d.count||1)/100)*0.38, 1.4) * ts.radiusScale
       const age = getPointAge(d.created_at)
-      return 0.55 * (1 - age * 0.3)
+      return 0.55 * ts.radiusScale * (1 - age * 0.3)
     })
     .pointAltitude(d => {
-      if (d.isUser) return 0.025
-      if (d.isSample) return 0.008
+      const ts = currentSkin.traceStyle
+      if (d.isUser) return ts.altitudeBase * 1.3
+      if (d.isSample) return ts.altitudeBase * 0.4
       const age = getPointAge(d.created_at)
-      return 0.02 * (1 - age * 0.5)  // 오래될수록 지구 표면에 스며드는 느낌
+      return ts.altitudeBase * (1 - age * 0.5)
     })
     .pointResolution(12)
     .pointLabel(d => { const e=em[d.emotion]; const loc=d.isUser?'나의 감정 ✨':d.city||'익명의 감정'; return `<div style="background:rgba(3,5,15,.95);border:1px solid rgba(255,255,255,.07);padding:10px 14px;border-radius:12px;color:white;font-family:'Gowun Dodum',sans-serif;font-size:12px;line-height:1.6"><div style="font-size:18px;margin-bottom:4px">${e?.emoji||'✨'}</div><div style="font-weight:bold;opacity:0.8">${loc}</div><div style="color:${e?.color};font-size:10px;opacity:0.7">${e?.label||''}</div></div>` })
@@ -560,11 +589,22 @@ window.onload = async function() {
   const savedSkin = localStorage.getItem('eg_skin') || 'default'
   buildSkinUI(savedSkin)
 
-  // 텍스처 로드
-  const storageDayUrl = `${STORAGE}/default/day.jpg`
-  fetch(storageDayUrl, {method:'HEAD'}).then(r => {
-    if (r.ok) globe.globeImageUrl(storageDayUrl)
-  }).catch(() => {})
+  // 텍스처 로드 — 현재 스킨 기준
+  const skin = currentSkin
+  const dayUrl    = skin.textures?.day   || `${STORAGE}/default/day.jpg`
+  const spaceUrl  = skin.textures?.space || `${CDN}/night-sky.png`
+  const cloudsUrl = skin.textures?.clouds
+
+  fetch(dayUrl, {method:'HEAD'})
+    .then(r => { if (r.ok) globe.globeImageUrl(dayUrl) })
+    .catch(() => {})
+
+  // 구름 레이어 (있으면 적용)
+  if (cloudsUrl) {
+    fetch(cloudsUrl, {method:'HEAD'})
+      .then(r => { if (r.ok && window._cloudsGlobe) window._cloudsGlobe.globeImageUrl(cloudsUrl) })
+      .catch(() => {})
+  }
 
 
 }
@@ -583,33 +623,44 @@ let _globeMat = null  // 현재 ShaderMaterial 참조
 // ─────────────────────────────────────────
 // applySkin — 스킨 교체 함수
 // ─────────────────────────────────────────
-function applySkin(skinKey, globe) {
-  const skin = SKINS[skinKey]
-  if (!skin) return
+function applySkin(skinKey) {
+  const skin = SKINS[skinKey] || SKINS.default
   if (skin.locked) { showSkinToast('🔒', '곧 출시돼요'); return }
-
   const fb = skin.fallback || SKINS.default.fallback
   const loadingEl = document.getElementById('skin-loading')
   loadingEl.style.opacity = '1'
 
-  Promise.all([
-    loadTextureWithFallback(skin.day, fb?.day),
-    loadTextureWithFallback(skin.night, fb?.night)
-  ]).then(([dayTex, nightTex]) => {
-    if (_globeMat) {
-      if (dayTex)   _globeMat.uniforms.dayTexture.value   = dayTex
-      if (nightTex) _globeMat.uniforms.nightTexture.value = nightTex
-    }
-    loadTextureWithFallback(skin.bg, fb?.bg).then(bg => {
-      if (bg) window._globe?.backgroundImageUrl(skin.bg)
-    })
-    localStorage.setItem('eg_skin', skinKey)
-    loadingEl.style.opacity = '0'
-    updateSkinUI(skinKey)
-  }).catch(() => {
-    showSkinToast('😅', '테마 로드 실패')
-    loadingEl.style.opacity = '0'
-  })
+  const primaryDay   = skin.textures?.day   || skin.day
+  const primaryNight = skin.textures?.night || skin.night
+  const primarySpace = skin.textures?.space || skin.bg
+
+  // 텍스처 교체
+  if (primaryDay)   window._globe?.globeImageUrl(primaryDay)
+  if (primarySpace) window._globe?.backgroundImageUrl(primarySpace)
+
+  // 대기권 스타일 적용
+  if (skin.atmosphereStyle) {
+    window._globe?.atmosphereColor(skin.atmosphereStyle.color)
+    window._globe?.atmosphereAltitude(skin.atmosphereStyle.altitude)
+  }
+
+  // 위로 빛 스타일 적용
+  if (skin.warmthStyle) {
+    const ws = skin.warmthStyle
+    const r = parseInt(ws.color.slice(1,3),16)
+    const g = parseInt(ws.color.slice(3,5),16)
+    const b = parseInt(ws.color.slice(5,7),16)
+    window._globe
+      ?.arcColor(()=>[`rgba(${r},${g},${b},0.05)`,ws.color,`rgba(${r},${g},${b},0.05)`])
+      ?.arcStroke(ws.strokeWidth)
+      ?.arcDashAnimateTime(ws.speedMs)
+      ?.arcAltitude(ws.altitude)
+  }
+
+  currentSkin = skin
+  localStorage.setItem('eg_skin', skinKey)
+  loadingEl.style.opacity = '0'
+  updateSkinUI(skinKey)
 }
 
 function showSkinToast(emoji, msg) {
@@ -630,7 +681,7 @@ function buildSkinUI(activeSkin) {
     item.className = 'skin-item' + (skin.locked ? ' locked' : '') + (key === activeSkin ? ' active' : '')
     item.dataset.skin = key
     item.innerHTML = `<span class="si-emoji">${skin.emoji}</span><span class="si-label">${skin.label}</span>${skin.locked ? '<span class="si-lock">곧 출시</span>' : ''}`
-    if (!skin.locked) item.onclick = () => applySkin(key, window._globe)
+    if (!skin.locked) item.onclick = () => applySkin(key)
     list.appendChild(item)
   })
 
