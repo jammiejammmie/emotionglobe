@@ -6,7 +6,6 @@
 <title>감정지구본</title>
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Cormorant+Garamond:ital,wght@1,400;1,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/globe.gl@2/dist/globe.gl.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; }
@@ -473,13 +472,18 @@ window.onload = async function() {
       if(p.user_id!==myId){ realData=[...realData,p]; allData=[...sampleData,...realData]; globe.pointsData(allData); const n=document.getElementById('totalNum'); n.textContent=(parseInt(n.textContent.replace(/,/g,''))+1).toLocaleString() }
     }).subscribe()
 
-  // 지구 먼저 보여주기 (텍스처 기다리지 않음)
+  // 지구 먼저 보여주기
   setTimeout(()=>document.getElementById('loading').classList.add('hide'), 700)
 
-  // 스킨 시스템 초기화
+  // 스킨 UI만 초기화 (셰이더 없이)
   const savedSkin = localStorage.getItem('eg_skin') || 'default'
-  initSkinSystem(globe, savedSkin)
   buildSkinUI(savedSkin)
+
+  // 텍스처 로드 (셰이더 없이 기본 방식)
+  const storageDayUrl = `${STORAGE}/default/day.jpg`
+  fetch(storageDayUrl, {method:'HEAD'}).then(r => {
+    if (r.ok) globe.globeImageUrl(storageDayUrl)
+  }).catch(() => {})
 }
 
 // ─────────────────────────────────────────
@@ -487,96 +491,11 @@ window.onload = async function() {
 // ─────────────────────────────────────────
 let _globeMat = null  // 현재 ShaderMaterial 참조
 
-function loadTextureWithFallback(primary, fallback) {
-  return new Promise(resolve => {
-    const loader = new THREE.TextureLoader()
-    loader.crossOrigin = 'anonymous'
-    loader.load(
-      primary,
-      resolve,
-      undefined,
-      () => {
-        if (!fallback) { resolve(null); return }
-        loader.load(fallback, resolve, undefined, () => resolve(null))
-      }
-    )
-  })
-}
+// loadTextureWithFallback: 셰이더 구현 시 복구
 
-function getSunDir() {
-  const now=new Date()
-  const utcH=now.getUTCHours()+now.getUTCMinutes()/60+now.getUTCSeconds()/3600
-  const start=Date.UTC(now.getUTCFullYear(),0,0)
-  const doy=Math.floor((now-start)/86400000)
-  const sunLng=(180-utcH*15)
-  const decl=23.45*Math.sin((2*Math.PI/365)*(doy-81))
-  const phi=(90-decl)*Math.PI/180
-  const theta=(sunLng+180)*Math.PI/180
-  return new THREE.Vector3(-Math.sin(phi)*Math.cos(theta),Math.cos(phi),Math.sin(phi)*Math.sin(theta)).normalize()
-}
 
-const VERT = `
-  precision mediump float;
-  varying vec3 vNormal; varying vec2 vUv;
-  void main() { vNormal=normalize(normalMatrix*normal); vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }
-`
-const FRAG = `
-  precision mediump float;
-  uniform sampler2D dayTexture; uniform sampler2D nightTexture; uniform vec3 sunDirection;
-  varying vec3 vNormal; varying vec2 vUv;
-  void main() {
-    float d=dot(normalize(vNormal),normalize(sunDirection));
-    vec4 day=texture2D(dayTexture,vUv); vec4 night=texture2D(nightTexture,vUv);
-    float f=smoothstep(-0.12,0.12,d);
-    float twi=max(0.0,1.0-abs(d)*8.0)*0.35;
-    vec3 twilight=vec3(0.95,0.42,0.1)*twi;
-    vec4 color=mix(night,day,f); color.rgb+=twilight;
-    gl_FragColor=vec4(color.rgb,1.0);
-  }
-`
 
-async function initSkinSystem(globe, skinKey) {
-  const skin = SKINS[skinKey] || SKINS.default
-  const fb = skin.fallback || SKINS.default.fallback
 
-  const [dayTex, nightTex] = await Promise.all([
-    loadTextureWithFallback(skin.day, fb?.day),
-    loadTextureWithFallback(skin.night, fb?.night)
-  ])
-
-  // Fallback: 텍스처 없으면 기본 색상 지구
-  if (!dayTex && !nightTex) {
-    console.warn('텍스처 로드 실패 — 기본 색상 지구 표시')
-    return
-  }
-
-  const mat = new THREE.ShaderMaterial({
-    uniforms: {
-      dayTexture:   { value: dayTex   || new THREE.Texture() },
-      nightTexture: { value: nightTex || new THREE.Texture() },
-      sunDirection: { value: getSunDir() }
-    },
-    vertexShader: VERT,
-    fragmentShader: FRAG
-  })
-
-  // 지구 구체 재질 교체
-  globe.scene().traverse(obj => {
-    if (obj.isMesh && obj.geometry?.type==='SphereGeometry' && (obj.geometry.parameters?.radius||0)>50) {
-      obj.material = mat; obj.material.needsUpdate = true
-    }
-  })
-
-  // 배경
-  const bgFb = fb?.bg || ''
-  loadTextureWithFallback(skin.bg, bgFb).then(bg => {
-    if (bg) globe.backgroundImageUrl(skin.bg)
-    else globe.backgroundImageUrl(bgFb)
-  })
-
-  _globeMat = mat
-  setInterval(() => { if(_globeMat) _globeMat.uniforms.sunDirection.value.copy(getSunDir()) }, 60000)
-}
 
 // ─────────────────────────────────────────
 // applySkin — 스킨 교체 함수
