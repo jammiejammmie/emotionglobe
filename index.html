@@ -426,8 +426,12 @@ window.onload = async function() {
   // GLOBE
   // ─────────────────────────────────────────
   const globe = Globe()(document.getElementById('globeViz'))
+<<<<<<< HEAD
     .globeImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg')
     .backgroundImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/night-sky.png')
+=======
+    .backgroundImageUrl('')
+>>>>>>> cc1a7b27ff158c07f8688268fc1c854f7076c4c1
     .atmosphereColor('#4a8fcc')
     .atmosphereAltitude(0.18)
     .pointsData(allData)
@@ -516,12 +520,18 @@ function getSunDir() {
 }
 
 const VERT = `
+<<<<<<< HEAD
   precision mediump float;
+=======
+>>>>>>> cc1a7b27ff158c07f8688268fc1c854f7076c4c1
   varying vec3 vNormal; varying vec2 vUv;
   void main() { vNormal=normalize(normalMatrix*normal); vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }
 `
 const FRAG = `
+<<<<<<< HEAD
   precision mediump float;
+=======
+>>>>>>> cc1a7b27ff158c07f8688268fc1c854f7076c4c1
   uniform sampler2D dayTexture; uniform sampler2D nightTexture; uniform vec3 sunDirection;
   varying vec3 vNormal; varying vec2 vUv;
   void main() {
