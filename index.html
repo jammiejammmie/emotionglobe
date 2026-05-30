@@ -303,7 +303,9 @@ window.onload = async function() {
 
   let realData = []
   try {
-    const { data } = await db.from('emotion_posts').select('*').gte('created_at',todayKey+'T00:00:00Z').limit(1000)
+    // 진짜 24시간 롤링 윈도우
+    const since24h = new Date(Date.now() - 24*60*60*1000).toISOString()
+    const { data } = await db.from('emotion_posts').select('*').gte('created_at', since24h).order('created_at', { ascending: false }).limit(1000)
     realData = data||[]
   } catch(e) {}
 
@@ -453,9 +455,28 @@ window.onload = async function() {
     .atmosphereAltitude(0.18)
     .pointsData(allData)
     .pointLat('lat').pointLng('lng')
-    .pointColor(d => { const e=em[d.emotion]; if(!e) return 'rgba(255,255,255,0.3)'; if(d.isUser) return e.color; if(d.isSample) return e.color+'44'; return e.color+'aa' })
-    .pointRadius(d => { if(d.isUser) return 0.55; if(d.isSample) return Math.min(Math.sqrt((d.count||1)/100)*0.38,1.4); return 0.5 })
-    .pointAltitude(d => d.isUser ? 0.025 : 0.008)
+    .pointColor(d => {
+      const e = em[d.emotion]
+      if (!e) return 'rgba(255,255,255,0.3)'
+      if (d.isUser) return e.color  // 내 것은 항상 선명하게
+      if (d.isSample) return e.color + '44'
+      // 실제 데이터: 나이에 따라 점점 희미해짐
+      const alpha = ageToAlpha(getPointAge(d.created_at))
+      return e.color + alpha
+    })
+    .pointRadius(d => {
+      if (d.isUser) return 0.55
+      if (d.isSample) return Math.min(Math.sqrt((d.count||1)/100)*0.38, 1.4)
+      // 나이에 따라 크기도 줄어듦
+      const age = getPointAge(d.created_at)
+      return 0.55 * (1 - age * 0.3)
+    })
+    .pointAltitude(d => {
+      if (d.isUser) return 0.025
+      if (d.isSample) return 0.008
+      const age = getPointAge(d.created_at)
+      return 0.02 * (1 - age * 0.5)  // 오래될수록 지구 표면에 스며드는 느낌
+    })
     .pointResolution(12)
     .pointLabel(d => { const e=em[d.emotion]; const loc=d.isUser?'나의 감정 ✨':d.city||'익명의 감정'; return `<div style="background:rgba(3,5,15,.95);border:1px solid rgba(255,255,255,.07);padding:10px 14px;border-radius:12px;color:white;font-family:'Gowun Dodum',sans-serif;font-size:12px;line-height:1.6"><div style="font-size:18px;margin-bottom:4px">${e?.emoji||'✨'}</div><div style="font-weight:bold;opacity:0.8">${loc}</div><div style="color:${e?.color};font-size:10px;opacity:0.7">${e?.label||''}</div></div>` })
     .ringsData(sampleData.filter(d=>['sad','anxiety','anger'].includes(d.emotion)&&d.count>1000))
@@ -594,6 +615,19 @@ function updateSkinUI(activeKey) {
 // ─────────────────────────────────────────
 // 유틸
 // ─────────────────────────────────────────
+// 흔적 나이 계산 (0 = 방금, 1 = 24시간)
+function getPointAge(createdAt) {
+  if (!createdAt) return 0
+  const age = (Date.now() - new Date(createdAt).getTime()) / (24*60*60*1000)
+  return Math.min(Math.max(age, 0), 1)
+}
+
+// 나이 기반 alpha 계산 (최신: 0xff, 오래됨: 0x33)
+function ageToAlpha(age) {
+  const alpha = Math.round((1 - age * 0.8) * 255)
+  return alpha.toString(16).padStart(2, '0')
+}
+
 function hexToRgb(hex) {
   const r=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
   return r ? `${parseInt(r[1],16)},${parseInt(r[2],16)},${parseInt(r[3],16)}` : '255,255,255'
